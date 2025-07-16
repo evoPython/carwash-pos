@@ -2,7 +2,8 @@
     "motor_big": {
         "amount": 180,
         "add_ons": {
-            "wax": 80
+            "wax": 80,
+            "vacuum": 80
         }
     },
     "motor_medium": {

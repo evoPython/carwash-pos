@@ -1,12 +1,27 @@
-from flask import Flask, render_template, request
 
+# -- MONGODB SETUP
+import os
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
+from dotenv import load_dotenv
+
+load_dotenv()
+
+uri = os.getenv("MONGO_URI")
+client = MongoClient(uri, server_api=ServerApi('1'))
+
+try:
+    client.admin.command('ping')
+    print("Pinged your deployment. You successfully connected to MongoDB!")
+except Exception as e:
+    print(e)
+
+# -- FLASK Setup
+from flask import Flask, render_template, request
 app = Flask(__name__)
 
 @app.route('/')
 def hello_world():
-    """
-    This function handles requests to the home page and returns "Hello, World!".
-    """
     print('[DEBUG] main route loaded')
     return render_template('index.html')
 
@@ -22,16 +37,29 @@ def add_record_entry():
 
     addons = list(zip(addon_names, addon_prices))
 
+    SSS = 2
+    VAC = 5 if "vacuum" in addon_names else 0
+
+    rent = int(amount) - 40 
+    cetadcco_share = rent * 0.7
+    carwasher_share = (rent * 0.3) - (SSS + VAC)
+
     print(f"""
     [DEBUG] New Entry added\n
     Entry data:\n 
     \tvehicleType: {vehicleType}\n 
     \tamount: {amount}\n 
     \tpaymentMode: {paymentMode}\n 
-    \tplateNumber: {plateNumber}\n 
+    \tplateNumber: {plateNumber}\n\n
+    \tRent: {rent}\n 
+    \tCetadcco Share: {cetadcco_share}\n
+    \tCarwasher Share: {carwasher_share}\n
     Addons:\n
     \t{addons}
     """)
+
+    # todo: return user to pos, add to mongodb
+    # todo: finalize database format
 
     return "Success"
 
