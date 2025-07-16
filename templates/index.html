@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Carwash POS</title>
+    <!-- <link rel="stylesheet" href="styles.css"> -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+
+<body>
+    <form id="posForm" class="card" action="/add_record_entry" method="POST">
+        <h1>Carwash POS</h1>
+
+        <!-- vehicle type with filter + dropdown -->
+        <div class="form-group">
+            <label for="vehicleFilter">Vehicle Type</label>
+            <div class="dropdown-wrapper">
+                <input type="text" id="vehicleFilter" name="vehicleType" placeholder="Search or select…"
+                    autocomplete="off">
+                <ul id="vehicleList" class="dropdown-list"></ul>
+            </div>
+        </div>
+
+        <!-- amount -->
+        <div class="form-group">
+            <label for="amount">Amount (₱)</label>
+            <input type="text" id="amount" name="amount">
+        </div>
+
+        <!-- payment mode -->
+        <div class="form-group">
+            <label for="paymentMode">Mode of Payment</label>
+            <select id="paymentMode" name="paymentMode">
+                <option disabled selected>Select…</option>
+                <option>Cash</option>
+                <option>GCash</option>
+                <option>Credit Card</option>
+                <option>Other</option>
+            </select>
+        </div>
+
+        <!-- plate no. -->
+        <div class="form-group">
+            <label for="plateNumber">Plate Number</label>
+            <input type="text" id="plateNumber" placeholder="ABC‑1234" name="plateNumber">
+        </div>
+
+        <!-- addons -->
+        <div class="form-group">
+            <div class="addons-header">
+                <strong>Add‑ons</strong>
+                <div class="dropdown-wrapper addons-dropdown">
+                    <button type="button" id="addAddonBtn">+ Add add-on</button>
+                    <ul id="addonList" class="dropdown-list"></ul>
+                </div>
+            </div>
+            <table id="addonsTable">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Price</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- Total -->
+        <div id="total">Total: ₱0</div>
+
+        <div id="formBtnContainer">
+            <button type="submit">Submit</button>
+            <button type="reset" class="formClearBtn">Clear</button>
+        </div>
+    </form>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+
+</html>
