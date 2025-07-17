@@ -1,3 +1,6 @@
+# -- LOCAL SQL SETUP
+from db import init_db, add_order
+init_db()
 
 # -- MONGODB SETUP
 import os
@@ -7,14 +10,15 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-uri = os.getenv("MONGO_URI")
-client = MongoClient(uri, server_api=ServerApi('1'))
+# For later, when online sync is implemented
+# uri = os.getenv("MONGO_URI")
+# client = MongoClient(uri, server_api=ServerApi('1'))
 
-try:
-    client.admin.command('ping')
-    print("Pinged your deployment. You successfully connected to MongoDB!")
-except Exception as e:
-    print(e)
+# try:
+#     client.admin.command('ping')
+#     print("Pinged your deployment. You successfully connected to MongoDB!")
+# except Exception as e:
+#     print(e)
 
 # -- FLASK Setup
 from flask import Flask, render_template, request
@@ -27,41 +31,46 @@ def hello_world():
 
 @app.route('/add_record_entry', methods=['POST'])
 def add_record_entry():
-    vehicleType = request.form['vehicleType']
-    amount = request.form['amount']
-    paymentMode = request.form['paymentMode']
-    plateNumber = request.form['plateNumber']
+    data = request.get_json()
+    print(f"Received:\n{data}")
     
-    addon_names = request.form.getlist('addon_name[]')
-    addon_prices = request.form.getlist('addon_price[]')
+    add_order(data)
 
-    addons = list(zip(addon_names, addon_prices))
+    # vehicleType = request.form['vehicleType']
+    # amount = request.form['amount']
+    # paymentMode = request.form['paymentMode']
+    # plateNumber = request.form['plateNumber']
+    
+    # addon_names = request.form.getlist('addon_name[]')
+    # addon_prices = request.form.getlist('addon_price[]')
 
-    SSS = 2
-    VAC = 5 if "vacuum" in addon_names else 0
+    # addons = list(zip(addon_names, addon_prices))
 
-    rent = int(amount) - 40 
-    cetadcco_share = rent * 0.7
-    carwasher_share = (rent * 0.3) - (SSS + VAC)
+    # SSS = 2
+    # VAC = 5 if "vacuum" in addon_names else 0
 
-    print(f"""
-    [DEBUG] New Entry added\n
-    Entry data:\n 
-    \tvehicleType: {vehicleType}\n 
-    \tamount: {amount}\n 
-    \tpaymentMode: {paymentMode}\n 
-    \tplateNumber: {plateNumber}\n\n
-    \tRent: {rent}\n 
-    \tCetadcco Share: {cetadcco_share}\n
-    \tCarwasher Share: {carwasher_share}\n
-    Addons:\n
-    \t{addons}
-    """)
+    # rent = int(amount) - 40 
+    # cetadcco_share = rent * 0.7
+    # carwasher_share = (rent * 0.3) - (SSS + VAC)
+
+    # print(f"""
+    # [DEBUG] New Entry added\n
+    # Entry data:\n 
+    # \tvehicleType: {vehicleType}\n 
+    # \tamount: {amount}\n 
+    # \tpaymentMode: {paymentMode}\n 
+    # \tplateNumber: {plateNumber}\n\n
+    # \tRent: {rent}\n 
+    # \tCetadcco Share: {cetadcco_share}\n
+    # \tCarwasher Share: {carwasher_share}\n
+    # Addons:\n
+    # \t{addons}
+    # """)
 
     # todo: return user to pos, add to mongodb
     # todo: finalize database format
 
-    return "Success"
+    return {"response": "Success"}
 
 if __name__ == '__main__':
     app.run(debug=True) 

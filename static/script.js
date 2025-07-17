@@ -132,3 +132,55 @@ function updateTotal() {
     Object.values(currentAddons).forEach(p => total += p);
     totalDisplay.textContent = `Total: ₱${total}`;
 }
+
+document.getElementById('submitBtn').addEventListener('click', function () {
+    const vehicleType = vehicleFilter.value;
+    const amount = parseFloat(amountInput.value) || 0;
+    const plateNumber = document.getElementById('plateNumber').value;
+    const paymentMode = document.getElementById('paymentMode').value;
+
+    // full list of known add-ons
+    const allAddons = ['wax', 'vacuum']; // add more as needed
+    const addons = {};
+
+    // normalize: ensure all add-ons are present in the final object
+    allAddons.forEach(name => {
+        addons[name] = currentAddons[name] || 0;
+    });
+
+    // compute shares
+    const SSS = 2;
+    const VAC = addons['vacuum'] > 0 ? 5 : 0;
+    const rent = amount - 40;
+    const cetadcco_share = +(rent * 0.7).toFixed(2);
+    const carwasher_share = +((rent * 0.3) - SSS - VAC).toFixed(2);
+
+    const payload = {
+        vehicleType,
+        amount,
+        plateNumber,
+        paymentMode,
+        addons,
+        rent,
+        SSS,
+        VAC,
+        cetadcco_share,
+        carwasher_share
+    };
+
+    // send to Flask backend
+    fetch('/add_record_entry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+        .then(res => res.json())
+        .then(data => {
+            console.log('Submitted successfully:', data);
+            alert('Submission successful!');
+        })
+        .catch(err => {
+            console.error('Error submitting:', err);
+            alert('Something went wrong.');
+        });
+});
