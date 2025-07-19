@@ -2,82 +2,111 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Carwash POS</title>
-    <!-- <link rel="stylesheet" href="styles.css"> -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Carwash POS Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='js/tabulator/tabulator.min.css') }}" />
 </head>
 
 <body>
-    <form id="posForm" class="card" action="" method="POST">
+    <header>
         <h1>Carwash POS</h1>
+        <button id="btn-open-modal" class="btn-primary">New Order</button>
+    </header>
 
-        <!-- vehicle type with filter + dropdown -->
-        <div class="form-group">
-            <label for="vehicleFilter">Vehicle Type</label>
-            <div class="dropdown-wrapper">
-                <input type="text" id="vehicleFilter" name="vehicleType" placeholder="Search or select…"
-                    autocomplete="off">
-                <ul id="vehicleList" class="dropdown-list"></ul>
+    <main>
+        <section class="controls">
+            <div class="filter">
+                <label>Date:</label>
+                <input type="date" id="filter-date" />
+                <label>Month:</label>
+                <input type="month" id="filter-month" />
+                <button id="btn-refresh" class="btn">Refresh</button>
             </div>
-        </div>
-
-        <!-- amount -->
-        <div class="form-group">
-            <label for="amount">Amount (₱)</label>
-            <input type="text" id="amount" name="amount">
-        </div>
-
-        <!-- payment mode -->
-        <div class="form-group">
-            <label for="paymentMode">Mode of Payment</label>
-            <select id="paymentMode" name="paymentMode">
-                <option disabled selected>Select…</option>
-                <option>Cash</option>
-                <option>GCash</option>
-                <option>Credit Card</option>
-                <option>Other</option>
-            </select>
-        </div>
-
-        <!-- plate no. -->
-        <div class="form-group">
-            <label for="plateNumber">Plate Number</label>
-            <input type="text" id="plateNumber" placeholder="ABC‑1234" name="plateNumber">
-        </div>
-
-        <!-- addons -->
-        <div class="form-group">
-            <div class="addons-header">
-                <strong>Add‑ons</strong>
-                <div class="dropdown-wrapper addons-dropdown">
-                    <button type="button" id="addAddonBtn">+ Add add-on</button>
-                    <ul id="addonList" class="dropdown-list"></ul>
+            <div class="summary">
+                <!-- Income Group -->
+                <div class="income-group">
+                    <div class="card gross">
+                        <h2>Gross Income</h2>
+                        <p id="sum-income">₱0.00</p>
+                    </div>
+                    <div class="card net">
+                        <h2>Net Income</h2>
+                        <p id="sum-net">₱0.00</p>
+                    </div>
+                </div>
+                <div class="card expense">
+                    <h2>Expenses</h2>
+                    <p id="sum-expenses">₱0.00</p>
+                </div>
+                <div class="card share-ceta">
+                    <h2>Cetadcco Share</h2>
+                    <p id="sum-cetadcco">₱0.00</p>
+                </div>
+                <div class="card share-carw">
+                    <h2>Carwasher Share</h2>
+                    <p id="sum-carwasher">₱0.00</p>
                 </div>
             </div>
-            <table id="addonsTable">
-                <thead>
-                    <tr>
-                        <th>Item</th>
-                        <th>Price</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
+        </section>
+
+        <section class="table-section">
+            <div id="orders-table"></div>
+        </section>
+    </main>
+
+    <!-- Modal -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span id="modal-close" class="modal-close">&times;</span>
+            <h2>New Order</h2>
+            <form id="order-form">
+                <div class="form-row">
+                    <label>
+                        Vehicle Type
+                        <select id="vehicle-type" required>
+                            <option value="" disabled selected>Choose one</option>
+                        </select>
+                    </label>
+                    <label>
+                        Base Price (₱)
+                        <input type="number" id="base-price" readonly />
+                    </label>
+                </div>
+                <div id="addons-container" class="form-row addons-row"></div>
+                <div class="form-row">
+                    <label>
+                        Rent (₱)
+                        <input type="number" id="rent" readonly />
+                    </label>
+                    <label>
+                        SSS (₱)
+                        <input type="number" id="sss" readonly />
+                    </label>
+                    <label>
+                        VAC (₱)
+                        <input type="number" id="vac" readonly />
+                    </label>
+                </div>
+                <div class="form-row">
+                    <label>
+                        Cetadcco Share (₱)
+                        <input type="number" id="cetadcco_share" readonly />
+                    </label>
+                    <label>
+                        Carwasher Share (₱)
+                        <input type="number" id="carwasher_share" readonly />
+                    </label>
+                </div>
+                <button type="submit" class="btn-primary">Add Order</button>
+            </form>
         </div>
+    </div>
 
-        <!-- Total -->
-        <div id="total">Total: ₱0</div>
-
-        <div id="formBtnContainer">
-            <button id="submitBtn" type="button">Submit</button>
-            <button type="reset" class="formClearBtn">Clear</button>
-        </div>
-    </form>
-
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chart.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/tabulator/tabulator.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 
 </html>

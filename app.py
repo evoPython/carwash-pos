@@ -1,76 +1,74 @@
-# -- LOCAL SQL SETUP
-from db import init_db, add_order
-init_db()
+from flask import Flask, render_template, request, jsonify
+from config import Config
+from db import init_db, add_order, start_sync_thread, get_db
+from db.models import Order
 
-# -- MONGODB SETUP
-import os
-from pymongo.mongo_client import MongoClient
-from pymongo.server_api import ServerApi
-from dotenv import load_dotenv
+def create_app():
+    app = Flask(__name__, static_folder="static", template_folder="templates")
+    app.config.from_object(Config)
 
-load_dotenv()
+    init_db()
+    if Config.SYNC_ENABLED:
+        start_sync_thread()
 
-# For later, when online sync is implemented
-# uri = os.getenv("MONGO_URI")
-# client = MongoClient(uri, server_api=ServerApi('1'))
+    @app.route("/")
+    def index():
+        return render_template("index.html")
 
-# try:
-#     client.admin.command('ping')
-#     print("Pinged your deployment. You successfully connected to MongoDB!")
-# except Exception as e:
-#     print(e)
+    @app.route("/api/orders", methods=["POST"])
+    def api_add_order():
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "invalid JSON"}), 400
+        oid = add_order(data)
+        return jsonify({"status": "ok", "id": oid}), 201
 
-# -- FLASK Setup
-from flask import Flask, render_template, request
-app = Flask(__name__)
+    @app.route("/api/orders", methods=["GET"])
+    def api_list_orders():
+        date  = request.args.get("date")
+        month = request.args.get("month")
+        clause = "SELECT data FROM orders"
+        params = []
+        if date:
+            clause += ' WHERE data LIKE ?'
+            params.append(f'%"{date}"%')
+        elif month:
+            clause += ' WHERE data LIKE ?'
+            params.append(f'%"{month}%')
+        with get_db() as conn:
+            rows = conn.execute(clause, params).fetchall()
+        orders = [Order.deserialize(r[0]) for r in rows]
+        return jsonify(orders), 200
 
-@app.route('/')
-def hello_world():
-    print('[DEBUG] main route loaded')
-    return render_template('index.html')
+    @app.route("/api/summary", methods=["GET"])
+    def api_summary():
+        date  = request.args.get("date")
+        month = request.args.get("month")
+        clause = "SELECT data FROM orders"
+        params = []
+        if date:
+            clause += ' WHERE data LIKE ?'
+            params.append(f'%"{date}"%')
+        elif month:
+            clause += ' WHERE data LIKE ?'
+            params.append(f'%"{month}%')
+        with get_db() as conn:
+            rows = conn.execute(clause, params).fetchall()
+        orders = [Order.deserialize(r[0]) for r in rows]
 
-@app.route('/add_record_entry', methods=['POST'])
-def add_record_entry():
-    data = request.get_json()
-    print(f"Received:\n{data}")
-    
-    add_order(data)
+        total_income         = sum(o.get("base_price", 0) + sum(o.get("addons", {}).values()) for o in orders)
+        total_expenses       = sum(o.get("rent", 0) for o in orders)
+        total_cetadcco_share = sum(o.get("cetadcco_share", 0) for o in orders)
+        total_carwasher      = sum(o.get("carwasher_share", 0) for o in orders)
 
-    # vehicleType = request.form['vehicleType']
-    # amount = request.form['amount']
-    # paymentMode = request.form['paymentMode']
-    # plateNumber = request.form['plateNumber']
-    
-    # addon_names = request.form.getlist('addon_name[]')
-    # addon_prices = request.form.getlist('addon_price[]')
+        return jsonify({
+            "income": total_income,
+            "expenses": total_expenses,
+            "cetadcco_share": total_cetadcco_share,
+            "carwasher_share": total_carwasher
+        }), 200
 
-    # addons = list(zip(addon_names, addon_prices))
+    return app
 
-    # SSS = 2
-    # VAC = 5 if "vacuum" in addon_names else 0
-
-    # rent = int(amount) - 40 
-    # cetadcco_share = rent * 0.7
-    # carwasher_share = (rent * 0.3) - (SSS + VAC)
-
-    # print(f"""
-    # [DEBUG] New Entry added\n
-    # Entry data:\n 
-    # \tvehicleType: {vehicleType}\n 
-    # \tamount: {amount}\n 
-    # \tpaymentMode: {paymentMode}\n 
-    # \tplateNumber: {plateNumber}\n\n
-    # \tRent: {rent}\n 
-    # \tCetadcco Share: {cetadcco_share}\n
-    # \tCarwasher Share: {carwasher_share}\n
-    # Addons:\n
-    # \t{addons}
-    # """)
-
-    # todo: return user to pos, add to mongodb
-    # todo: finalize database format
-
-    return {"response": "Success"}
-
-if __name__ == '__main__':
-    app.run(debug=True) 
+if __name__ == "__main__":
+    create_app().run(debug=True, port=5000)

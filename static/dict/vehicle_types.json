@@ -1,21 +1,29 @@
 {
     "motor_big": {
         "amount": 180,
+        "rent_pct": 0.10,
+        "share_pct": 0.20,
         "add_ons": {
             "wax": 80,
-            "vacuum": 80
+            "vacuum": 50
         }
     },
     "motor_medium": {
-        "amount": 160,
+        "amount": 150,
+        "rent_pct": 0.10,
+        "share_pct": 0.20,
         "add_ons": {
-            "wax": 80
+            "wax": 70,
+            "vacuum": 40
         }
     },
     "motor_small": {
-        "amount": 140,
+        "amount": 120,
+        "rent_pct": 0.10,
+        "share_pct": 0.20,
         "add_ons": {
-            "wax": 80
+            "wax": 60,
+            "vacuum": 30
         }
     }
 }
