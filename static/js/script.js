@@ -114,8 +114,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // Load orders & summary
     async function loadData() {
         const params = new URLSearchParams();
-        if (dateInput.value) params.set("date", dateInput.value);
-        else if (monthInput.value) params.set("month", monthInput.value);
+        // if (dateInput.value) params.set("date", dateInput.value);
+        if (monthInput.value) params.set("month", monthInput.value);
 
         const [oRes, sRes] = await Promise.all([
             fetch("/api/orders?" + params),
