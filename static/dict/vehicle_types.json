@@ -1,29 +1,174 @@
 {
-    "motor_big": {
-        "amount": 180,
-        "rent_pct": 0.10,
-        "share_pct": 0.20,
-        "add_ons": {
-            "wax": 80,
-            "vacuum": 50
-        }
+    "Vios": {
+        "Bodywash": 200,
+        "Bodywash with Vacuum": 250,
+        "Wax": 150,
+        "Buffing": 200,
+        "Deep Cleaning": 80,
+        "Engine Wash": 80,
+        "Seat Cover": 150,
+        "Vacuum Only": 150,
+        "Spray Only": 100
     },
-    "motor_medium": {
-        "amount": 150,
-        "rent_pct": 0.10,
-        "share_pct": 0.20,
-        "add_ons": {
-            "wax": 70,
-            "vacuum": 40
-        }
+    "Almera": {
+        "Bodywash": 200,
+        "Bodywash with Vacuum": 250,
+        "Wax": 150,
+        "Buffing": 200,
+        "Deep Cleaning": 80,
+        "Engine Wash": 80,
+        "Seat Cover": 150,
+        "Vacuum Only": 150,
+        "Spray Only": 100
     },
-    "motor_small": {
-        "amount": 120,
-        "rent_pct": 0.10,
-        "share_pct": 0.20,
-        "add_ons": {
-            "wax": 60,
-            "vacuum": 30
-        }
+    "Wigo": {
+        "Bodywash": 200,
+        "Bodywash with Vacuum": 250,
+        "Wax": 150,
+        "Buffing": 200,
+        "Deep Cleaning": 80,
+        "Engine Wash": 80,
+        "Seat Cover": 150,
+        "Vacuum Only": 150,
+        "Spray Only": 100
+    },
+    "Civic": {
+        "Bodywash": 200,
+        "Bodywash with Vacuum": 250,
+        "Wax": 150,
+        "Buffing": 200,
+        "Deep Cleaning": 80,
+        "Engine Wash": 80,
+        "Seat Cover": 150,
+        "Vacuum Only": 150,
+        "Spray Only": 100
+    },
+    "Small Taxi": {
+        "Bodywash": 200,
+        "Bodywash with Vacuum": 250,
+        "Wax": 150,
+        "Buffing": 200,
+        "Deep Cleaning": 80,
+        "Engine Wash": 80,
+        "Seat Cover": 150,
+        "Vacuum Only": 150,
+        "Spray Only": 100
+    },
+    "Multicab": {
+        "Bodywash": 200,
+        "Bodywash with Vacuum": 250,
+        "Wax": 150,
+        "Buffing": 200,
+        "Deep Cleaning": 80,
+        "Engine Wash": 80,
+        "Seat Cover": 150,
+        "Vacuum Only": 150,
+        "Spray Only": 100
+    },
+    "Adventure": {
+        "Bodywash": 250,
+        "Bodywash with Vacuum": 300,
+        "Wax": 200,
+        "Buffing": 250,
+        "Deep Cleaning": 100,
+        "Engine Wash": 100,
+        "Seat Cover": 200,
+        "Vacuum Only": 200,
+        "Spray Only": 150
+    },
+    "Big Taxi": {
+        "Bodywash": 250,
+        "Bodywash with Vacuum": 300,
+        "Wax": 200,
+        "Buffing": 250,
+        "Deep Cleaning": 100,
+        "Engine Wash": 100,
+        "Seat Cover": 200,
+        "Vacuum Only": 200,
+        "Spray Only": 150
+    },
+    "Innova": {
+        "Bodywash": 250,
+        "Bodywash with Vacuum": 300,
+        "Wax": 200,
+        "Buffing": 250,
+        "Deep Cleaning": 100,
+        "Engine Wash": 100,
+        "Seat Cover": 200,
+        "Vacuum Only": 200,
+        "Spray Only": 150
+    },
+    "Xpander": {
+        "Bodywash": 250,
+        "Bodywash with Vacuum": 300,
+        "Wax": 200,
+        "Buffing": 250,
+        "Deep Cleaning": 100,
+        "Engine Wash": 100,
+        "Seat Cover": 200,
+        "Vacuum Only": 200,
+        "Spray Only": 150
+    },
+    "Small Van": {
+        "Bodywash": 250,
+        "Bodywash with Vacuum": 300,
+        "Wax": 200,
+        "Buffing": 250,
+        "Deep Cleaning": 100,
+        "Engine Wash": 100,
+        "Seat Cover": 200,
+        "Vacuum Only": 200,
+        "Spray Only": 150
+    },
+    "Hillux": {
+        "Bodywash": 290,
+        "Bodywash with Vacuum": 370,
+        "Wax": 250,
+        "Buffing": 300,
+        "Deep Cleaning": 120,
+        "Engine Wash": 120,
+        "Seat Cover": 250,
+        "Vacuum Only": 250,
+        "Spray Only": 200
+    },
+    "Fortuner": {
+        "Bodywash": 290,
+        "Bodywash with Vacuum": 370,
+        "Wax": 250,
+        "Buffing": 300,
+        "Deep Cleaning": 120,
+        "Engine Wash": 120,
+        "Seat Cover": 250,
+        "Vacuum Only": 250,
+        "Spray Only": 200
+    },
+    "Hiace Van": {
+        "Bodywash": 300,
+        "Bodywash with Vacuum": 350,
+        "Wax": 250,
+        "Buffing": 300,
+        "Deep Cleaning": 120,
+        "Engine Wash": 120,
+        "Seat Cover": 250,
+        "Vacuum Only": 250,
+        "Spray Only": 200
+    },
+    "Motor S": {
+        "Bodywash": 140,
+        "Wax": 80,
+        "Deep Cleaning": 80,
+        "Spray Only": 100
+    },
+    "Motor M": {
+        "Bodywash": 160,
+        "Wax": 80,
+        "Deep Cleaning": 80,
+        "Spray Only": 100
+    },
+    "Motor B": {
+        "Bodywash": 180,
+        "Wax": 80,
+        "Deep Cleaning": 80,
+        "Spray Only": 100
     }
 }

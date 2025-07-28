@@ -1,0 +1,23 @@
+{
+    "motor_big": {
+        "amount": 180,
+        "add_ons": {
+            "wax": 80,
+            "vacuum": 50
+        }
+    },
+    "motor_medium": {
+        "amount": 150,
+        "add_ons": {
+            "wax": 70,
+            "vacuum": 40
+        }
+    },
+    "motor_small": {
+        "amount": 120,
+        "add_ons": {
+            "wax": 60,
+            "vacuum": 30
+        }
+    }
+}
