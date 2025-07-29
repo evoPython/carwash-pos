@@ -25,18 +25,18 @@ document.addEventListener("DOMContentLoaded", () => {
         .then(r => r.json())
         .then(data => {
             vehicleData = data;
-            // extract all addon names globally
+            // extract all service names globally
             const names = new Set();
             Object.values(data).forEach(v => {
-                Object.keys(v.add_ons || {}).forEach(n => names.add(n));
+                Object.keys(v).forEach(n => names.add(n));
             });
             addonNames = Array.from(names).sort();
 
             // populate vehicle dropdown
-            Object.entries(data).forEach(([type, info]) => {
+            Object.entries(data).forEach(([type, services]) => {
                 const o = document.createElement("option");
                 o.value = type;
-                o.textContent = `${type} (₱${info.amount})`;
+                o.textContent = type;
                 vehicleSel.appendChild(o);
             });
 
@@ -50,7 +50,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const cols = [
             { title: "ID", field: "id", width: 50 },
             { title: "Vehicle", field: "vehicle_type" },
-            { title: "Base", field: "base_price", formatter: "money", formatterParams: { symbol: "₱" } }
+            { title: "Total", field: "base_price", formatter: "money", formatterParams: { symbol: "₱" } }
         ];
         addonNames.forEach(n => {
             cols.push({ title: n, field: n, formatter: "money", formatterParams: { symbol: "₱" } });
@@ -70,16 +70,20 @@ document.addEventListener("DOMContentLoaded", () => {
     function recalcAll() {
         const info = vehicleData[vehicleSel.value];
         if (!info) return;
-        const amount = +info.amount;
+        
+        // Calculate total from selected services
+        const selectedServices = Array.from(addonsDiv.querySelectorAll("input:checked"));
+        const totalAmount = selectedServices.reduce((sum, cb) => sum + (+cb.value), 0);
+        
         const SSS = 2;
-        const vac = Array.from(addonsDiv.querySelectorAll("input:checked"))
-            .some(cb => cb.nextSibling.textContent.trim().toLowerCase().startsWith("vacuum"))
+        const vac = selectedServices
+            .some(cb => cb.nextSibling.textContent.trim().toLowerCase().includes("vacuum"))
             ? 5 : 0;
-        const rent = amount - 40;
+        const rent = totalAmount - 40;
         const cetadcco = +(rent * 0.7).toFixed(2);
         const carwasher = +((rent * 0.3) - (SSS + vac)).toFixed(2);
 
-        baseInput.value = amount;
+        baseInput.value = totalAmount;
         sssInput.value = SSS;
         vacInput.value = vac;
         rentInput.value = rent;
@@ -89,17 +93,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // When vehicle selection changes
     vehicleSel.addEventListener("change", () => {
-        const info = vehicleData[vehicleSel.value];
-        if (!info) return;
+        const services = vehicleData[vehicleSel.value];
+        if (!services) return;
 
-        // build addon checkboxes
+        // build service checkboxes
         addonsDiv.innerHTML = "";
-        Object.entries(info.add_ons || {}).forEach(([name, price]) => {
+        Object.entries(services).forEach(([name, price]) => {
             const lbl = document.createElement("label");
-            lbl.innerHTML = `<input type="checkbox" value="${price}"> ${name}:₱${price}`;
+            lbl.innerHTML = `<input type="checkbox" value="${price}"> ${name}: ₱${price}`;
             addonsDiv.appendChild(lbl);
         });
-        // recalc when any addon toggles
+        // recalc when any service toggles
         addonsDiv.querySelectorAll("input").forEach(cb =>
             cb.addEventListener("change", recalcAll)
         );
@@ -173,16 +177,16 @@ document.addEventListener("DOMContentLoaded", () => {
     // Submit new order
     form.addEventListener("submit", async e => {
         e.preventDefault();
-        const addons = {};
+        const services = {};
         addonsDiv.querySelectorAll("input:checked").forEach(cb => {
             const text = cb.nextSibling.textContent.trim();
-            const name = text.split(":")[0];
-            addons[name] = +cb.value;
+            const name = text.split(":")[0].trim();
+            services[name] = +cb.value;
         });
         const payload = {
             vehicle_type: vehicleSel.value,
-            base_price: +baseInput.value,
-            addons,
+            base_price: +baseInput.value, // This is now the total of selected services
+            addons: services, // Keep the same structure for backend compatibility
             rent: +rentInput.value,
             sss: +sssInput.value,
             vac: +vacInput.value,

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Register - Carwash POS</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+</head>
+
+<body class="auth-body">
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h1>Carwash POS</h1>
+                <h2>Create Account</h2>
+            </div>
+
+            <!-- Flash messages for errors/success -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages">
+                        {% for category, message in messages %}
+                            <div class="flash-message flash-{{ category }}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <form class="auth-form" method="POST">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        required 
+                        value="{{ request.form.username or '' }}"
+                        placeholder="Choose a username"
+                        minlength="3"
+                        maxlength="50"
+                    />
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        name="email" 
+                        required 
+                        value="{{ request.form.email or '' }}"
+                        placeholder="Enter your email address"
+                    />
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        required 
+                        placeholder="Create a password"
+                        minlength="6"
+                    />
+                </div>
+
+                <div class="form-group">
+                    <label for="confirm_password">Confirm Password</label>
+                    <input 
+                        type="password" 
+                        id="confirm_password" 
+                        name="confirm_password" 
+                        required 
+                        placeholder="Confirm your password"
+                        minlength="6"
+                    />
+                </div>
+
+                <div class="form-group">
+                    <label for="role">Account Type</label>
+                    <select id="role" name="role" required>
+                        <option value="" disabled selected>Choose account type</option>
+                        <option value="Incharge" {{ 'selected' if request.form.role == 'Incharge' }}>
+                            Incharge - Daily operations access
+                        </option>
+                        <option value="Admin" {{ 'selected' if request.form.role == 'Admin' }}>
+                            Admin - Full business operations
+                        </option>
+                        <option value="Developer" {{ 'selected' if request.form.role == 'Developer' }}>
+                            Developer - System administration
+                        </option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn-primary auth-btn">Create Account</button>
+            </form>
+
+            <div class="auth-footer">
+                <p>Already have an account? <a href="{{ url_for('login') }}">Sign in here</a></p>
+                <p class="auth-note">
+                    <strong>Note:</strong> Registration may require approval from an administrator depending on the selected role.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Client-side password confirmation validation
+        document.getElementById('confirm_password').addEventListener('input', function() {
+            const password = document.getElementById('password').value;
+            const confirmPassword = this.value;
+            
+            if (password !== confirmPassword) {
+                this.setCustomValidity('Passwords do not match');
+            } else {
+                this.setCustomValidity('');
+            }
+        });
+
+        // Update password confirmation validation when password changes
+        document.getElementById('password').addEventListener('input', function() {
+            const confirmPassword = document.getElementById('confirm_password');
+            if (confirmPassword.value) {
+                confirmPassword.dispatchEvent(new Event('input'));
+            }
+        });
+    </script>
+</body>
+
+</html>

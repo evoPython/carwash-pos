@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>User Management - Carwash POS</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='js/tabulator/tabulator.min.css') }}" />
+</head>
+
+<body>
+    <header>
+        <h1>User Management</h1>
+        <div class="user-info">
+            <div class="user-avatar">{{ current_user.username[0].upper() }}</div>
+            <div class="user-details">
+                <h3>{{ current_user.username }}</h3>
+                <span class="user-role {{ current_user.role.lower() }}">{{ current_user.role }}</span>
+            </div>
+            <a href="{{ url_for('index') }}" class="btn">Back to Dashboard</a>
+            <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
+        </div>
+    </header>
+
+    <main>
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash-message flash-{{ category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <section class="controls">
+            <div class="filter">
+                <h2>User Management</h2>
+                <button id="btn-add-user" class="btn-primary">Add New User</button>
+                <button id="btn-refresh-users" class="btn">Refresh</button>
+            </div>
+        </section>
+
+        <section class="table-section">
+            <div id="users-table"></div>
+        </section>
+    </main>
+
+    <!-- Add/Edit User Modal -->
+    <div id="user-modal" class="modal">
+        <div class="modal-content">
+            <span id="user-modal-close" class="modal-close">&times;</span>
+            <h2 id="user-modal-title">Add New User</h2>
+            <form id="user-form">
+                <input type="hidden" id="user-id" name="user_id" />
+                
+                <div class="form-row">
+                    <label>
+                        Username
+                        <input type="text" id="user-username" name="username" required minlength="3" maxlength="50" />
+                    </label>
+                    <label>
+                        Email
+                        <input type="email" id="user-email" name="email" required />
+                    </label>
+                </div>
+
+                <div class="form-row">
+                    <label>
+                        Password
+                        <input type="password" id="user-password" name="password" minlength="6" />
+                        <small>Leave blank to keep current password (when editing)</small>
+                    </label>
+                    <label>
+                        Role
+                        <select id="user-role" name="role" required>
+                            <option value="">Choose role</option>
+                            <option value="Incharge">Incharge - Daily operations</option>
+                            <option value="Admin">Admin - Full business access</option>
+                            <option value="Developer">Developer - System admin</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div class="form-row">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="user-active" name="is_active" checked />
+                        <span class="checkmark"></span>
+                        Active Account
+                    </label>
+                </div>
+
+                <button type="submit" class="btn-primary">Save User</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/tabulator/tabulator.min.js') }}"></script>
+    <script>
+        // User management functionality
+        let usersTable;
+        let isEditMode = false;
+
+        // Initialize users table
+        function initUsersTable() {
+            usersTable = new Tabulator("#users-table", {
+                ajaxURL: "/api/users",
+                layout: "fitColumns",
+                pagination: "local",
+                paginationSize: 10,
+                columns: [
+                    {
+                        title: "ID", 
+                        field: "id", 
+                        width: 60,
+                        sorter: "number"
+                    },
+                    {
+                        title: "Username", 
+                        field: "username", 
+                        sorter: "string"
+                    },
+                    {
+                        title: "Email", 
+                        field: "email", 
+                        sorter: "string"
+                    },
+                    {
+                        title: "Role", 
+                        field: "role", 
+                        sorter: "string",
+                        formatter: function(cell) {
+                            const role = cell.getValue();
+                            const roleClass = role.toLowerCase();
+                            return `<span class="user-role ${roleClass}">${role}</span>`;
+                        }
+                    },
+                    {
+                        title: "Status", 
+                        field: "is_active", 
+                        sorter: "boolean",
+                        formatter: function(cell) {
+                            return cell.getValue() ? 
+                                '<span style="color: #28a745;">Active</span>' : 
+                                '<span style="color: #dc3545;">Inactive</span>';
+                        }
+                    },
+                    {
+                        title: "Created", 
+                        field: "created_at", 
+                        sorter: "date",
+                        formatter: function(cell) {
+                            return new Date(cell.getValue()).toLocaleDateString();
+                        }
+                    },
+                    {
+                        title: "Actions", 
+                        field: "actions",
+                        headerSort: false,
+                        formatter: function(cell) {
+                            const data = cell.getRow().getData();
+                            return `
+                                <button class="btn" onclick="editUser(${data.id})">Edit</button>
+                                <button class="btn" onclick="toggleUserStatus(${data.id}, ${data.is_active})" 
+                                        style="background: ${data.is_active ? '#dc3545' : '#28a745'}; color: white;">
+                                    ${data.is_active ? 'Deactivate' : 'Activate'}
+                                </button>
+                            `;
+                        }
+                    }
+                ]
+            });
+        }
+
+        // Modal functionality
+        const modal = document.getElementById('user-modal');
+        const modalClose = document.getElementById('user-modal-close');
+        const addUserBtn = document.getElementById('btn-add-user');
+        const refreshBtn = document.getElementById('btn-refresh-users');
+        const userForm = document.getElementById('user-form');
+
+        addUserBtn.addEventListener('click', () => {
+            openUserModal();
+        });
+
+        modalClose.addEventListener('click', () => {
+            closeUserModal();
+        });
+
+        refreshBtn.addEventListener('click', () => {
+            usersTable.replaceData();
+        });
+
+        window.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeUserModal();
+            }
+        });
+
+        function openUserModal(userData = null) {
+            isEditMode = !!userData;
+            const title = document.getElementById('user-modal-title');
+            const passwordField = document.getElementById('user-password');
+            
+            if (isEditMode) {
+                title.textContent = 'Edit User';
+                passwordField.required = false;
+                fillUserForm(userData);
+            } else {
+                title.textContent = 'Add New User';
+                passwordField.required = true;
+                clearUserForm();
+            }
+            
+            modal.style.display = 'block';
+        }
+
+        function closeUserModal() {
+            modal.style.display = 'none';
+            clearUserForm();
+        }
+
+        function fillUserForm(userData) {
+            document.getElementById('user-id').value = userData.id;
+            document.getElementById('user-username').value = userData.username;
+            document.getElementById('user-email').value = userData.email;
+            document.getElementById('user-role').value = userData.role;
+            document.getElementById('user-active').checked = userData.is_active;
+            document.getElementById('user-password').value = '';
+        }
+
+        function clearUserForm() {
+            userForm.reset();
+            document.getElementById('user-id').value = '';
+            isEditMode = false;
+        }
+
+        // User form submission
+        userForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(userForm);
+            const userData = Object.fromEntries(formData.entries());
+            userData.is_active = document.getElementById('user-active').checked;
+            
+            try {
+                const url = isEditMode ? '/api/users/update' : '/api/users/create';
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(userData)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    closeUserModal();
+                    usersTable.replaceData();
+                    showFlashMessage('success', result.message || 'User saved successfully');
+                } else {
+                    showFlashMessage('error', result.error || 'Failed to save user');
+                }
+            } catch (error) {
+                showFlashMessage('error', 'Network error occurred');
+            }
+        });
+
+        // User actions
+        async function editUser(userId) {
+            try {
+                const response = await fetch(`/api/users/${userId}`);
+                const userData = await response.json();
+                
+                if (response.ok) {
+                    openUserModal(userData);
+                } else {
+                    showFlashMessage('error', 'Failed to load user data');
+                }
+            } catch (error) {
+                showFlashMessage('error', 'Network error occurred');
+            }
+        }
+
+        async function toggleUserStatus(userId, currentStatus) {
+            const action = currentStatus ? 'deactivate' : 'activate';
+            
+            if (!confirm(`Are you sure you want to ${action} this user?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/users/${userId}/${action}`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    usersTable.replaceData();
+                    showFlashMessage('success', result.message);
+                } else {
+                    showFlashMessage('error', result.error);
+                }
+            } catch (error) {
+                showFlashMessage('error', 'Network error occurred');
+            }
+        }
+
+        // Flash message helper
+        function showFlashMessage(type, message) {
+            const flashContainer = document.querySelector('.flash-messages') || createFlashContainer();
+            const flashDiv = document.createElement('div');
+            flashDiv.className = `flash-message flash-${type}`;
+            flashDiv.textContent = message;
+            
+            flashContainer.appendChild(flashDiv);
+            
+            setTimeout(() => {
+                flashDiv.remove();
+            }, 5000);
+        }
+
+        function createFlashContainer() {
+            const container = document.createElement('div');
+            container.className = 'flash-messages';
+            document.querySelector('main').insertBefore(container, document.querySelector('.controls'));
+            return container;
+        }
+
+        // Initialize table on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            initUsersTable();
+        });
+    </script>
+</body>
+
+</html>

@@ -11,8 +11,26 @@
 
 <body>
     <header>
-        <h1>Carwash POS</h1>
-        <button id="btn-open-modal" class="btn-primary">New Order</button>
+        <div class="header-left">
+            <h1>Carwash POS</h1>
+            <button id="btn-open-modal" class="btn-primary" style="margin-left: 2rem;">New Order</button>
+        </div>
+        <div class="header-center">
+            <!-- Empty center for better balance -->
+        </div>
+        <div class="header-right">
+            <div class="user-info">
+                <div class="user-avatar">{{ current_user.username[0].upper() }}</div>
+                <div class="user-details">
+                    <h3>{{ current_user.username }}</h3>
+                    <span class="user-role {{ current_user.role.lower() }}">{{ current_user.role }}</span>
+                </div>
+                {% if current_user.has_permission(80) %}
+                <a href="{{ url_for('users') }}" class="btn">Manage Users</a>
+                {% endif %}
+                <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
+            </div>
+        </div>
     </header>
 
     <main>
@@ -68,7 +86,7 @@
                         </select>
                     </label>
                     <label>
-                        Base Price (₱)
+                        Total Price (₱)
                         <input type="number" id="base-price" readonly />
                     </label>
                 </div>
