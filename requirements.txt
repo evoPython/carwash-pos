@@ -5,6 +5,9 @@ Werkzeug==2.3.7
 # Authentication
 Flask-Login==0.6.3
 
+# Timezone handling
+pytz==2023.3
+
 # Database (if using MongoDB in the future)
 # pymongo==4.5.0
 

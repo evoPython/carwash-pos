@@ -26,8 +26,7 @@ def init_auth(app):
     """Initialize authentication for the Flask app."""
     login_manager.init_app(app)
     login_manager.login_view = 'login'
-    login_manager.login_message = 'Please log in to access this page.'
-    login_manager.login_message_category = 'info'
+    login_manager.login_message = None
     login_manager.session_protection = app.config.get('SESSION_PROTECTION', 'strong')
 
 @login_manager.user_loader
@@ -67,7 +66,6 @@ def require_permission(required_level):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             if not current_user.is_authenticated:
-                flash('Please log in to access this page.', 'error')
                 return redirect(url_for('login'))
             
             if not current_user.has_permission(required_level):
@@ -94,7 +92,6 @@ def require_role(*allowed_roles):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             if not current_user.is_authenticated:
-                flash('Please log in to access this page.', 'error')
                 return redirect(url_for('login'))
             
             if current_user.role not in allowed_roles:
@@ -117,7 +114,6 @@ def require_login(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated:
-            flash('Please log in to access this page.', 'error')
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function

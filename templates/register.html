@@ -45,14 +45,14 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="email">Email</label>
-                    <input 
-                        type="email" 
-                        id="email" 
-                        name="email" 
-                        required 
-                        value="{{ request.form.email or '' }}"
-                        placeholder="Enter your email address"
+                    <label for="full_name">Full Name</label>
+                    <input
+                        type="text"
+                        id="full_name"
+                        name="full_name"
+                        required
+                        value="{{ request.form.full_name or '' }}"
+                        placeholder="Enter your full name"
                     />
                 </div>
 
@@ -82,7 +82,7 @@
 
                 <div class="form-group">
                     <label for="role">Account Type</label>
-                    <select id="role" name="role" required>
+                    <select id="role" name="role" required onchange="toggleShiftFields()">
                         <option value="" disabled selected>Choose account type</option>
                         <option value="Incharge" {{ 'selected' if request.form.role == 'Incharge' }}>
                             Incharge - Daily operations access
@@ -94,6 +94,18 @@
                             Developer - System administration
                         </option>
                     </select>
+                </div>
+
+                <div id="shift-fields" style="display: none;">
+                    <div class="form-group">
+                        <label for="shift">Shift</label>
+                        <select id="shift" name="shift">
+                            <option value="">Select shift</option>
+                            <option value="AM" {{ 'selected' if request.form.shift == 'AM' else '' }}>AM (5:00 AM - 5:00 PM)</option>
+                            <option value="PM" {{ 'selected' if request.form.shift == 'PM' else '' }}>PM (5:00 PM - 5:00 AM)</option>
+                        </select>
+                        <small>Required for Incharge role</small>
+                    </div>
                 </div>
 
                 <button type="submit" class="btn-primary auth-btn">Create Account</button>
@@ -127,6 +139,27 @@
             if (confirmPassword.value) {
                 confirmPassword.dispatchEvent(new Event('input'));
             }
+        });
+
+        // Toggle shift fields based on role selection
+        function toggleShiftFields() {
+            const roleSelect = document.getElementById('role');
+            const shiftFields = document.getElementById('shift-fields');
+            const shiftSelect = document.getElementById('shift');
+            
+            if (roleSelect.value === 'Incharge') {
+                shiftFields.style.display = 'block';
+                shiftSelect.required = true;
+            } else {
+                shiftFields.style.display = 'none';
+                shiftSelect.required = false;
+                shiftSelect.value = '';
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            toggleShiftFields();
         });
     </script>
 </body>

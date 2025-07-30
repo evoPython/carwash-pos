@@ -11,13 +11,10 @@
 
 <body>
     <header>
-        <h1>User Management</h1>
-        <div class="user-info">
-            <div class="user-avatar">{{ current_user.username[0].upper() }}</div>
-            <div class="user-details">
-                <h3>{{ current_user.username }}</h3>
-                <span class="user-role {{ current_user.role.lower() }}">{{ current_user.role }}</span>
-            </div>
+        <div class="header-center">
+            <h1>User Management</h1>
+        </div>
+        <div class="header-right">
             <a href="{{ url_for('index') }}" class="btn">Back to Dashboard</a>
             <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
         </div>
@@ -64,8 +61,8 @@
                         <input type="text" id="user-username" name="username" required minlength="3" maxlength="50" />
                     </label>
                     <label>
-                        Email
-                        <input type="email" id="user-email" name="email" required />
+                        Full Name
+                        <input type="text" id="user-full-name" name="full_name" required />
                     </label>
                 </div>
 
@@ -77,12 +74,24 @@
                     </label>
                     <label>
                         Role
-                        <select id="user-role" name="role" required>
+                        <select id="user-role" name="role" required onchange="toggleShiftField()">
                             <option value="">Choose role</option>
                             <option value="Incharge">Incharge - Daily operations</option>
                             <option value="Admin">Admin - Full business access</option>
                             <option value="Developer">Developer - System admin</option>
                         </select>
+                    </label>
+                </div>
+
+                <div id="shift-field" class="form-row" style="display: none;">
+                    <label>
+                        Shift
+                        <select id="user-shift" name="shift">
+                            <option value="">Select shift</option>
+                            <option value="AM">AM (5:00 AM - 5:00 PM)</option>
+                            <option value="PM">PM (5:00 PM - 5:00 AM)</option>
+                        </select>
+                        <small>Required for Incharge role</small>
                     </label>
                 </div>
 
@@ -125,8 +134,8 @@
                         sorter: "string"
                     },
                     {
-                        title: "Email", 
-                        field: "email", 
+                        title: "Full Name",
+                        field: "full_name",
                         sorter: "string"
                     },
                     {
@@ -140,12 +149,21 @@
                         }
                     },
                     {
-                        title: "Status", 
-                        field: "is_active", 
+                        title: "Shift",
+                        field: "shift",
+                        sorter: "string",
+                        formatter: function(cell) {
+                            const shift = cell.getValue();
+                            return shift ? `<span class="shift-badge ${shift.toLowerCase()}">${shift}</span>` : '-';
+                        }
+                    },
+                    {
+                        title: "Status",
+                        field: "is_active",
                         sorter: "boolean",
                         formatter: function(cell) {
-                            return cell.getValue() ? 
-                                '<span style="color: #28a745;">Active</span>' : 
+                            return cell.getValue() ?
+                                '<span style="color: #28a745;">Active</span>' :
                                 '<span style="color: #dc3545;">Inactive</span>';
                         }
                     },
@@ -227,10 +245,12 @@
         function fillUserForm(userData) {
             document.getElementById('user-id').value = userData.id;
             document.getElementById('user-username').value = userData.username;
-            document.getElementById('user-email').value = userData.email;
+            document.getElementById('user-full-name').value = userData.full_name;
             document.getElementById('user-role').value = userData.role;
+            document.getElementById('user-shift').value = userData.shift || '';
             document.getElementById('user-active').checked = userData.is_active;
             document.getElementById('user-password').value = '';
+            toggleShiftField();
         }
 
         function clearUserForm() {
@@ -331,6 +351,22 @@
             container.className = 'flash-messages';
             document.querySelector('main').insertBefore(container, document.querySelector('.controls'));
             return container;
+        }
+
+        // Toggle shift field based on role selection
+        function toggleShiftField() {
+            const roleSelect = document.getElementById('user-role');
+            const shiftField = document.getElementById('shift-field');
+            const shiftSelect = document.getElementById('user-shift');
+            
+            if (roleSelect.value === 'Incharge') {
+                shiftField.style.display = 'block';
+                shiftSelect.required = true;
+            } else {
+                shiftField.style.display = 'none';
+                shiftSelect.required = false;
+                shiftSelect.value = '';
+            }
         }
 
         // Initialize table on page load

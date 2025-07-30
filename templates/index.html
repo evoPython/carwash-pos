@@ -11,33 +11,42 @@
 
 <body>
     <header>
-        <div class="header-left">
-            <h1>Carwash POS</h1>
-            <button id="btn-open-modal" class="btn-primary" style="margin-left: 2rem;">New Order</button>
-        </div>
         <div class="header-center">
-            <!-- Empty center for better balance -->
+            <h1>Carwash POS</h1>
         </div>
         <div class="header-right">
-            <div class="user-info">
-                <div class="user-avatar">{{ current_user.username[0].upper() }}</div>
-                <div class="user-details">
-                    <h3>{{ current_user.username }}</h3>
-                    <span class="user-role {{ current_user.role.lower() }}">{{ current_user.role }}</span>
-                </div>
-                {% if current_user.has_permission(80) %}
-                <a href="{{ url_for('users') }}" class="btn">Manage Users</a>
-                {% endif %}
-                <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
-            </div>
+            {% if current_user.has_permission(80) %}
+            <a href="{{ url_for('users') }}" class="btn">Manage Users</a>
+            {% endif %}
+            <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
         </div>
     </header>
 
+    <div class="user-section">
+        <div class="user-name">{{ current_user.full_name }}</div>
+        <div class="user-role {{ current_user.role.lower() }}">{{ current_user.role }}</div>
+        {% if current_user.role == 'Incharge' %}
+        <div id="user-shift" style="display: none;">{{ current_user.shift }}</div>
+        {% endif %}
+        <div id="current-datetime" class="current-datetime"></div>
+    </div>
+
     <main>
+        <section class="table-section">
+            <div id="orders-table"></div>
+        </section>
+
+        <section class="new-order-section">
+            <button id="btn-open-modal" class="btn-primary">New Order</button>
+        </section>
+
+        <div id="shift-timer" class="shift-timer"></div>
+
+        {% if current_user.has_permission(80) %}
         <section class="controls">
             <div class="filter">
-                <!-- <label>Date:</label>
-                <input type="date" id="filter-date" /> -->
+                <label>Date:</label>
+                <input type="date" id="filter-date" />
                 <label>Month:</label>
                 <input type="month" id="filter-month" />
                 <button id="btn-refresh" class="btn">Refresh</button>
@@ -66,10 +75,7 @@
                 </div>
             </div>
         </section>
-
-        <section class="table-section">
-            <div id="orders-table"></div>
-        </section>
+        {% endif %}
     </main>
 
     <!-- Modal -->
@@ -82,37 +88,78 @@
                     <label>
                         Vehicle Type
                         <select id="vehicle-type" required>
-                            <option value="" disabled selected>Choose one</option>
+                            <option value="" disabled selected>Choose vehicle type</option>
                         </select>
                     </label>
-                    <label>
-                        Total Price (₱)
-                        <input type="number" id="base-price" readonly />
-                    </label>
                 </div>
-                <div id="addons-container" class="form-row addons-row"></div>
+                <div class="form-row">
+                    <label>Base Service</label>
+                    <div class="base-service-radio">
+                        <label class="radio-label">
+                            <input type="radio" name="base-service" value="Bodywash" required>
+                            Bodywash
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="base-service" value="Bodywash with Vacuum">
+                            Bodywash with Vacuum
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="base-service" value="Vacuum Only">
+                            Vacuum Only
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="base-service" value="Spray Only">
+                            Spray Only
+                        </label>
+                    </div>
+                </div>
                 <div class="form-row">
                     <label>
-                        Rent (₱)
-                        <input type="number" id="rent" readonly />
+                        Plate No.
+                        <input type="text" id="plate-no" required placeholder="Enter plate number" />
                     </label>
+                    <label>
+                        Price (₱)
+                        <input type="number" id="price" required min="40" step="0.01"
+                            placeholder="Price will be set automatically" readonly />
+                    </label>
+                </div>
+                <div class="form-row">
+                    <label>
+                        W/Vac
+                        <input type="checkbox" id="w-vac" />
+                    </label>
+                </div>
+                <div class="form-row">
+                    <label>Additional Services</label>
+                    <div class="addon-checkboxes">
+
+                    </div>
+                </div>
+                <div class="form-row">
+                    <label>
+                        Less 40 (₱)
+                        <input type="number" id="less-40" value="40" readonly />
+                    </label>
+                    <label>
+                        C-Shares (₱)
+                        <input type="number" id="c-shares" readonly />
+                    </label>
+                </div>
+                <div class="form-row">
+                    <label>
+                        W-Share (₱)
+                        <input type="number" id="w-share" readonly />
+                    </label>
+                    <label>
+                        W-Name
+                        <input type="text" id="w-name" value="{{ current_user.full_name }}" readonly />
+                    </label>
+                </div>
+                <div class="form-row">
                     <label>
                         SSS (₱)
-                        <input type="number" id="sss" readonly />
-                    </label>
-                    <label>
-                        VAC (₱)
-                        <input type="number" id="vac" readonly />
-                    </label>
-                </div>
-                <div class="form-row">
-                    <label>
-                        Cetadcco Share (₱)
-                        <input type="number" id="cetadcco_share" readonly />
-                    </label>
-                    <label>
-                        Carwasher Share (₱)
-                        <input type="number" id="carwasher_share" readonly />
+                        <input type="number" id="sss" value="2" readonly />
                     </label>
                 </div>
                 <button type="submit" class="btn-primary">Add Order</button>

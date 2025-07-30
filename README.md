@@ -1,223 +1,135 @@
 # Carwash POS System
 
-A comprehensive Point of Sale (POS) system for Cetadcco carwash with integrated user authentication and role-based access control.
+A comprehensive Point of Sale system for carwash businesses built with Flask, featuring role-based access control, shift management, and automated financial calculations.
 
 ## Features
 
 ### Core Functionality
-- **Order Management**: Create, track, and manage carwash orders
-- **Financial Reporting**: Real-time income, expenses, and profit tracking
-- **Vehicle Type Management**: Support for different vehicle categories and pricing
-- **Add-on Services**: Flexible pricing for additional services
+- **New Order Management**: Vehicle name, plate number, pricing with automatic calculations
+- **Financial Calculations**: 
+  - C-SHARES = (PRICE - 40) * 0.7 - VAC
+  - W-SHARE = (PRICE - 40) * 0.3 - 2 - VAC
+  - Automatic VAC deduction (5 pesos) when vacuum service is selected
+- **Real-time Dashboard**: Shows orders with role-based filtering
 
-### Authentication & Security
-- **User Authentication**: Secure login/logout system with session management
-- **Role-Based Access Control**: Three-tier permission system (Developer, Admin, Incharge)
-- **User Management**: Admin interface for creating and managing user accounts
-- **Password Security**: Encrypted password storage with secure hashing
-- **Session Protection**: Strong session security with CSRF protection
+### User Management & Security
+- **Role-Based Access Control**:
+  - **Admin/Developer**: Full access to all data, financial summaries, user management
+  - **Incharge**: Limited to own sales from current shift only
+- **Shift Management**: 
+  - AM Shift: 5:00 AM - 5:00 PM
+  - PM Shift: 5:00 PM - 5:00 AM
+  - Automatic shift detection and access control
+- **Authentication**: Uses full names instead of email addresses
 
-## User Roles
+### Dashboard Features
+- **Clean Interface**: Title bar shows only "Carwash POS" centered
+- **User Display**: Full name and role prominently displayed
+- **Shift-Based Data**: Incharges see only their current shift data
+- **Financial Summaries**: Available only to Admin/Developer roles
 
-| Role | Permission Level | Access |
-|------|------------------|--------|
-| **Developer** | 100 | Full system access, user management, system administration |
-| **Admin** | 80 | Full business operations, financial reports, order management |
-| **Incharge** | 60 | Daily operations, basic order management, limited reporting |
+## Installation & Setup
 
-## Quick Start
+1. **Install Dependencies**:
+```bash
+pip install -r requirements.txt
+```
 
-### Prerequisites
-- Python 3.7+
-- Flask and dependencies (see requirements.txt)
+2. **Start the Application**:
+```bash
+python start_app.py
+```
+*The database will be automatically initialized on first run*
 
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd carwash-pos
-   ```
-
-2. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Run the application**
-   ```bash
-   python app.py
-   ```
-
-4. **Access the application**
+3. **Access the Application**:
    - Open your browser to `http://localhost:5000`
-   - You'll be redirected to the login page
+   - Login redirects directly to dashboard (no welcome page)
 
-### Default Login Credentials
+## Default Accounts
 
-**⚠️ Change these passwords immediately in production!**
+- **Admin**: username=`admin`, password=`admin123`, full_name=`Administrator`
+- **Developer**: username=`developer`, password=`dev123`, full_name=`System Developer`
 
-- **Admin Account**
-  - Username: `admin`
-  - Password: `admin123`
+## Database Schema
 
-- **Developer Account**
-  - Username: `developer`
-  - Password: `dev123`
+### Orders Table
+- **No.** (ID): Auto-incrementing primary key
+- **VEHICLE NAME**: Customer's vehicle name
+- **PLATE NO.**: Vehicle plate number
+- **W/Vac**: Yes/No for vacuum service
+- **ADDONS**: Additional services (text)
+- **PRICE**: Total service price
+- **LESS 40**: Always 40 (fixed deduction)
+- **C-SHARES**: Calculated company share
+- **W-SHARE**: Calculated worker share
+- **W-NAME**: Worker's full name
+- **SSS**: Always 2 (fixed deduction)
 
-## Project Structure
+### Users Table
+- **ID**: Auto-incrementing primary key
+- **Username**: Unique login identifier
+- **Full Name**: User's complete name
+- **Role**: Admin, Developer, or Incharge
+- **Shift**: AM or PM (for Incharge users only)
+- **Active Status**: Account activation status
+
+## Usage Guide
+
+### For Incharges
+1. Login during your assigned shift time
+2. View your own sales from the current shift
+3. Add new orders using the "New Order" button
+4. System automatically calculates shares and deductions
+
+### For Admin/Developers
+1. Access all system data regardless of shift
+2. View financial summaries and reports
+3. Manage user accounts and assign shifts
+4. Monitor all transactions across shifts
+
+### Adding New Orders
+1. Click "New Order" button
+2. Fill in:
+   - Vehicle Name
+   - Plate Number
+   - Select W/Vac (Yes/No)
+   - Enter Price
+   - Add any additional services
+3. System automatically calculates:
+   - C-SHARES and W-SHARE based on price and VAC
+   - Applies proper deductions (LESS 40, SSS, VAC)
+
+## Technical Details
+
+- **Backend**: Flask with SQLite database
+- **Frontend**: HTML, CSS, JavaScript with Tabulator.js
+- **Authentication**: Flask-Login with role-based permissions
+- **Database**: Automatic schema detection and reinitialization
+- **Responsive Design**: Works on desktop and mobile devices
+
+## File Structure
 
 ```
 carwash-pos/
 ├── app.py                 # Main Flask application
-├── auth.py                # Authentication module and decorators
-├── config.py              # Application configuration
-├── requirements.txt       # Python dependencies
-├── AUTHENTICATION.md      # Detailed authentication documentation
+├── start_app.py          # Startup script
+├── auth.py               # Authentication logic
+├── config.py             # Configuration settings
 ├── db/
-│   ├── __init__.py       # Database initialization and user functions
-│   └── models.py         # Data models (Order, User, Role)
-├── templates/
-│   ├── index.html        # Main dashboard
-│   ├── login.html        # Login page
-│   ├── register.html     # User registration
-│   └── users.html        # User management interface
-├── static/
-│   ├── css/
-│   │   └── styles.css    # Application styles
-│   ├── js/
-│   │   ├── script.js     # Main application JavaScript
-│   │   └── tabulator/    # Table library for data display
-│   └── dict/
-│       └── vehicle_types.json # Vehicle type definitions
-└── carwash.db            # SQLite database (created on first run)
+│   ├── __init__.py       # Database functions
+│   └── models.py         # Data models
+├── templates/            # HTML templates
+├── static/               # CSS, JS, and assets
+└── requirements.txt      # Python dependencies
 ```
-
-## API Endpoints
-
-### Authentication
-- `GET/POST /login` - User login
-- `GET/POST /register` - User registration
-- `GET /logout` - User logout
-
-### Application Routes
-- `GET /` - Main dashboard (requires login)
-- `GET /users` - User management (admin only)
-
-### API Routes
-- `GET/POST /api/orders` - Order management (requires login)
-- `GET /api/summary` - Financial summary (requires login)
-- `GET/POST /api/users/*` - User management APIs (admin only)
-
-## Configuration
-
-### Environment Variables
-
-For production deployment, set these environment variables:
-
-```bash
-SECRET_KEY=your-very-secure-secret-key-here
-SQLITE_DB_PATH=/path/to/your/database.db
-MONGO_URI=mongodb://localhost:27017/carwash_main  # Optional
-SYNC_ENABLED=1  # Enable/disable MongoDB sync
-```
-
-### Security Configuration
-
-The application includes several security features:
-
-- **Password Hashing**: Uses Werkzeug's secure password hashing
-- **Session Security**: Strong session protection enabled
-- **CSRF Protection**: Built-in CSRF protection via Flask
-- **Input Validation**: All user inputs are validated and sanitized
-
-## Development
-
-### Adding New User Roles
-
-1. Update the `Role` class in [`db/models.py`](db/models.py:25)
-2. Add the new role to `ROLE_PERMISSIONS` dictionary
-3. Update templates and documentation as needed
-
-### Adding Protected Routes
-
-Use the authentication decorators:
-
-```python
-from auth import require_login, require_admin, require_permission
-
-@app.route('/protected')
-@require_login
-def protected_route():
-    return "This requires login"
-
-@app.route('/admin-only')
-@require_admin
-def admin_route():
-    return "This requires admin access"
-```
-
-### Database Schema
-
-The application uses SQLite with the following main tables:
-
-- **orders**: Store order data as JSON
-- **users**: User accounts with authentication info
-- **roles**: Implicit in the User model with permission levels
-
-## Security Best Practices
-
-1. **Change default passwords** immediately
-2. **Use strong SECRET_KEY** in production
-3. **Enable HTTPS** for production deployment
-4. **Regular backups** of the database
-5. **Monitor user activity** and access logs
-6. **Keep dependencies updated**
 
 ## Troubleshooting
 
-### Common Issues
-
-1. **Database not found**: The database is created automatically on first run
-2. **Permission denied**: Check user roles and permission levels
-3. **Login issues**: Verify default users were created successfully
-
-### Debug Mode
-
-For development, the application runs in debug mode by default. For production:
-
-```python
-if __name__ == "__main__":
-    create_app().run(debug=False, host='0.0.0.0', port=5000)
-```
-
-## Documentation
-
-- **[AUTHENTICATION.md](AUTHENTICATION.md)**: Comprehensive authentication system documentation
-- **Code Comments**: Detailed inline documentation throughout the codebase
-- **API Documentation**: Available in the authentication documentation
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## License
-
-This project is in development for Cetadcco carwash operations.
+- **Database Issues**: The system automatically reinitializes the database if schema is outdated
+- **Login Problems**: Check if user is accessing during correct shift time (for Incharges)
+- **Permission Errors**: Verify user role and permissions in user management
+- **Calculation Issues**: Ensure price is entered correctly and VAC selection is made
 
 ## Support
 
-For questions or issues:
-1. Check the [AUTHENTICATION.md](AUTHENTICATION.md) documentation
-2. Review code comments and inline documentation
-3. Create an issue in the repository
-
----
-
-**Status**: Active Development
-**Version**: 1.0 with Authentication System
-**Last Updated**: January 2024
+For technical support or feature requests, please refer to the system administrator.

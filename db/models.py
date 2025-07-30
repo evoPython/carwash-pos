@@ -52,14 +52,15 @@ class Role:
 class User(UserMixin):
     """User model for authentication and authorization."""
     
-    def __init__(self, id, username, email, password_hash, role, is_active=True, created_at=None):
+    def __init__(self, id, username, full_name, password_hash, role, is_active=True, created_at=None, shift=None):
         self.id = id
         self.username = username
-        self.email = email
+        self.full_name = full_name  # Changed from email to full_name
         self.password_hash = password_hash
         self.role = role
         self._is_active = is_active  # Use private attribute to avoid conflict with UserMixin
         self.created_at = created_at or datetime.utcnow().isoformat()
+        self.shift = shift  # For incharge shift scheduling ('AM' or 'PM')
     
     @property
     def is_active(self):
@@ -104,10 +105,11 @@ class User(UserMixin):
         return {
             'id': self.id,
             'username': self.username,
-            'email': self.email,
+            'full_name': self.full_name,
             'role': self.role,
             'is_active': self._is_active,
-            'created_at': self.created_at
+            'created_at': self.created_at,
+            'shift': self.shift
         }
     
     @staticmethod
@@ -116,9 +118,28 @@ class User(UserMixin):
         return User(
             id=row[0],
             username=row[1],
-            email=row[2],
+            full_name=row[2],
             password_hash=row[3],
             role=row[4],
             is_active=bool(row[5]),
-            created_at=row[6]
+            created_at=row[6],
+            shift=row[7] if len(row) > 7 else None
         )
+    
+    def is_shift_active(self):
+        """Check if current time is within user's shift (for incharges)."""
+        if self.role != Role.INCHARGE or not self.shift:
+            return True  # Non-incharges or those without shifts can always access
+        
+        from datetime import datetime
+        
+        # Get current hour (assuming system is in Manila timezone)
+        current_hour = datetime.now().hour
+        
+        # AM shift: 5am-5pm (5-16), PM shift: 5pm-5am (17-23, 0-4)
+        if self.shift == 'AM':
+            return 5 <= current_hour < 17
+        elif self.shift == 'PM':
+            return current_hour >= 17 or current_hour < 5
+        
+        return True

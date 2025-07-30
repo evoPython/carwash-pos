@@ -4,7 +4,7 @@ from config import Config
 from db import (init_db, add_order, start_sync_thread, get_db,
                 get_user_by_username, create_user, get_all_users,
                 get_user_by_id, update_user_role, activate_user,
-                deactivate_user, change_user_password)
+                deactivate_user, change_user_password, update_user_shift)
 from db.models import Order, User, Role
 from auth import (init_auth, authenticate_user, require_login,
                   require_admin, require_developer, get_redirect_target)
@@ -48,9 +48,8 @@ def create_app():
                 if remember_me:
                     from flask import session
                     session.permanent = True
-                flash(f'Welcome back, {user.username}!', 'success')
-                
-                # Redirect to next page or dashboard
+
+                # Redirect directly to dashboard (no welcome message)
                 next_page = get_redirect_target()
                 return redirect(next_page or url_for('index'))
             else:
@@ -66,13 +65,14 @@ def create_app():
         
         if request.method == "POST":
             username = request.form.get('username')
-            email = request.form.get('email')
+            full_name = request.form.get('full_name')
             password = request.form.get('password')
             confirm_password = request.form.get('confirm_password')
             role = request.form.get('role')
+            shift = request.form.get('shift')
             
             # Validation
-            if not all([username, email, password, confirm_password, role]):
+            if not all([username, full_name, password, confirm_password, role]):
                 flash('All fields are required.', 'error')
                 return render_template('register.html')
             
@@ -88,8 +88,18 @@ def create_app():
                 flash('Invalid role selected.', 'error')
                 return render_template('register.html')
             
+            # For incharges, shift is required
+            if role == 'Incharge' and not shift:
+                flash('Shift selection is required for Incharge role.', 'error')
+                return render_template('register.html')
+            
+            # Validate shift value
+            if shift and shift not in ['AM', 'PM']:
+                flash('Invalid shift selected.', 'error')
+                return render_template('register.html')
+            
             try:
-                user_id = create_user(username, email, password, role)
+                user_id = create_user(username, full_name, password, role, shift)
                 flash('Account created successfully! You can now log in.', 'success')
                 return redirect(url_for('login'))
             except ValueError as e:
@@ -102,7 +112,6 @@ def create_app():
     def logout():
         """User logout route."""
         logout_user()
-        flash('You have been logged out.', 'info')
         return redirect(url_for('login'))
 
     # ============================================
@@ -113,6 +122,8 @@ def create_app():
     @require_login
     def index():
         """Main dashboard - requires login."""
+        # Allow all users to access the dashboard
+        
         return render_template("index.html")
     
     @app.route("/users")
@@ -138,50 +149,110 @@ def create_app():
     @app.route("/api/orders", methods=["GET"])
     @require_login
     def api_list_orders():
-        """List orders - requires login."""
-        date  = request.args.get("date")
+        """List orders - requires login with role-based filtering."""
+        from datetime import datetime, time
+        import pytz
+
+        date = request.args.get("date")
         month = request.args.get("month")
-        clause = "SELECT data FROM orders"
+
+        # Base query for new order structure
+        clause = """
+            SELECT id, vehicle_name, plate_no, w_vac, addons, price, less_40,
+                   c_shares, w_share, w_name, sss, timestamp, shift, created_by
+            FROM orders WHERE 1=1
+        """
         params = []
+
+        # Date/month filtering
         if date:
-            clause += ' WHERE data LIKE ?'
-            params.append(f'%"{date}"%')
+            clause += ' AND DATE(timestamp) = ?'
+            params.append(date)
         elif month:
-            clause += ' WHERE data LIKE ?'
-            params.append(f'%"{month}%')
+            clause += ' AND strftime("%Y-%m", timestamp) = ?'
+            params.append(month)
+
+        # Get current user's full name and role
+        current_user_full_name = current_user.full_name
+        current_user_role = current_user.role
+
+        # Check if user is admin or developer
+        is_admin_or_dev = current_user_role in ['Admin', 'Developer']
+
+        # Apply filtering based on user type
+        if not is_admin_or_dev:
+            # For regular users, filter by W-Name and timestamp day
+            # Get current day in Manila timezone
+            manila_tz = pytz.timezone('Asia/Manila')
+            current_day = datetime.now(manila_tz).strftime('%Y-%m-%d')
+
+            # Add conditions for W-Name and timestamp day
+            clause += ' AND w_name = ? AND DATE(timestamp) = ?'
+            params.append(current_user_full_name)
+            params.append(current_day)
+
         with get_db() as conn:
             rows = conn.execute(clause, params).fetchall()
-        orders = [Order.deserialize(r[0]) for r in rows]
+
+        # Convert to the expected format
+        orders = []
+        for row in rows:
+            order = {
+                'id': row[0],
+                'vehicle_name': row[1],
+                'plate_no': row[2],
+                'w_vac': row[3],
+                'addons': row[4],  # Store as string
+                'price': row[5],
+                'less_40': row[6],
+                'c_shares': row[7],
+                'w_share': row[8],
+                'w_name': row[9],
+                'sss': row[10],
+                'timestamp': row[11],
+                'shift': row[12],
+                'created_by': row[13]
+            }
+            orders.append(order)
+
         return jsonify(orders), 200
 
     @app.route("/api/summary", methods=["GET"])
     @require_login
     def api_summary():
-        """Get financial summary - requires login."""
-        date  = request.args.get("date")
+        """Get financial summary - admin/dev only."""
+        # Only admin/dev can see financial summaries
+        if current_user.role == 'Incharge':
+            return jsonify({"error": "Access denied"}), 403
+        
+        from datetime import datetime
+        
+        date = request.args.get("date")
         month = request.args.get("month")
-        clause = "SELECT data FROM orders"
+        
+        clause = "SELECT price, c_shares, w_share FROM orders WHERE 1=1"
         params = []
+        
         if date:
-            clause += ' WHERE data LIKE ?'
-            params.append(f'%"{date}"%')
+            clause += ' AND DATE(timestamp) = ?'
+            params.append(date)
         elif month:
-            clause += ' WHERE data LIKE ?'
-            params.append(f'%"{month}%')
+            clause += ' AND strftime("%Y-%m", timestamp) = ?'
+            params.append(month)
+        
         with get_db() as conn:
             rows = conn.execute(clause, params).fetchall()
-        orders = [Order.deserialize(r[0]) for r in rows]
-
-        total_income         = sum(o.get("base_price", 0) + sum(o.get("addons", {}).values()) for o in orders)
-        total_expenses       = sum(o.get("rent", 0) for o in orders)
-        total_cetadcco_share = sum(o.get("cetadcco_share", 0) for o in orders)
-        total_carwasher      = sum(o.get("carwasher_share", 0) for o in orders)
+        
+        total_income = sum(row[0] for row in rows)
+        total_expenses = len(rows) * 40  # LESS 40 per order
+        total_cetadcco_share = sum(row[1] for row in rows)
+        total_carwasher_share = sum(row[2] for row in rows)
 
         return jsonify({
             "income": total_income,
             "expenses": total_expenses,
             "cetadcco_share": total_cetadcco_share,
-            "carwasher_share": total_carwasher
+            "carwasher_share": total_carwasher_share
         }), 200
 
     # ============================================
@@ -220,17 +291,23 @@ def create_app():
                 return jsonify({"error": "No data provided"}), 400
             
             username = data.get('username')
-            email = data.get('email')
+            full_name = data.get('full_name')
             password = data.get('password')
             role = data.get('role')
+            shift_start = data.get('shift_start')
+            shift_end = data.get('shift_end')
             
-            if not all([username, email, password, role]):
+            if not all([username, full_name, password, role]):
                 return jsonify({"error": "Missing required fields"}), 400
             
             if role not in Role.get_all_roles():
                 return jsonify({"error": "Invalid role"}), 400
             
-            user_id = create_user(username, email, password, role)
+            # For incharges, shift times are required
+            if role == 'Incharge' and (not shift_start or not shift_end):
+                return jsonify({"error": "Shift times required for Incharge role"}), 400
+            
+            user_id = create_user(username, full_name, password, role, shift_start, shift_end)
             return jsonify({"message": "User created successfully", "id": user_id}), 201
             
         except ValueError as e:
@@ -273,6 +350,10 @@ def create_app():
                     activate_user(user_id)
                 else:
                     deactivate_user(user_id)
+            
+            # Update shift times if provided
+            if 'shift_start' in data and 'shift_end' in data:
+                update_user_shift(user_id, data['shift_start'], data['shift_end'])
             
             return jsonify({"message": "User updated successfully"}), 200
             
