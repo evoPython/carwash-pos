@@ -12,7 +12,7 @@
 <body>
     <header>
         <div class="header-center">
-            <h1>User Management</h1>
+            <h1>Carwash POS</h1>
         </div>
         <div class="header-right">
             <a href="{{ url_for('index') }}" class="btn">Back to Dashboard</a>
@@ -23,15 +23,15 @@
     <main>
         <!-- Flash messages -->
         {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="flash-messages">
-                    {% for category, message in messages %}
-                        <div class="flash-message flash-{{ category }}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
+        {% if messages %}
+        <div class="flash-messages">
+            {% for category, message in messages %}
+            <div class="flash-message flash-{{ category }}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
         {% endwith %}
 
         <section class="controls">
@@ -54,7 +54,7 @@
             <h2 id="user-modal-title">Add New User</h2>
             <form id="user-form">
                 <input type="hidden" id="user-id" name="user_id" />
-                
+
                 <div class="form-row">
                     <label>
                         Username
@@ -123,14 +123,14 @@
                 paginationSize: 10,
                 columns: [
                     {
-                        title: "ID", 
-                        field: "id", 
+                        title: "ID",
+                        field: "id",
                         width: 60,
                         sorter: "number"
                     },
                     {
-                        title: "Username", 
-                        field: "username", 
+                        title: "Username",
+                        field: "username",
                         sorter: "string"
                     },
                     {
@@ -139,10 +139,10 @@
                         sorter: "string"
                     },
                     {
-                        title: "Role", 
-                        field: "role", 
+                        title: "Role",
+                        field: "role",
                         sorter: "string",
-                        formatter: function(cell) {
+                        formatter: function (cell) {
                             const role = cell.getValue();
                             const roleClass = role.toLowerCase();
                             return `<span class="user-role ${roleClass}">${role}</span>`;
@@ -152,7 +152,7 @@
                         title: "Shift",
                         field: "shift",
                         sorter: "string",
-                        formatter: function(cell) {
+                        formatter: function (cell) {
                             const shift = cell.getValue();
                             return shift ? `<span class="shift-badge ${shift.toLowerCase()}">${shift}</span>` : '-';
                         }
@@ -161,25 +161,25 @@
                         title: "Status",
                         field: "is_active",
                         sorter: "boolean",
-                        formatter: function(cell) {
+                        formatter: function (cell) {
                             return cell.getValue() ?
                                 '<span style="color: #28a745;">Active</span>' :
                                 '<span style="color: #dc3545;">Inactive</span>';
                         }
                     },
                     {
-                        title: "Created", 
-                        field: "created_at", 
+                        title: "Created",
+                        field: "created_at",
                         sorter: "date",
-                        formatter: function(cell) {
+                        formatter: function (cell) {
                             return new Date(cell.getValue()).toLocaleDateString();
                         }
                     },
                     {
-                        title: "Actions", 
+                        title: "Actions",
                         field: "actions",
                         headerSort: false,
-                        formatter: function(cell) {
+                        formatter: function (cell) {
                             const data = cell.getRow().getData();
                             return `
                                 <button class="btn" onclick="editUser(${data.id})">Edit</button>
@@ -223,7 +223,7 @@
             isEditMode = !!userData;
             const title = document.getElementById('user-modal-title');
             const passwordField = document.getElementById('user-password');
-            
+
             if (isEditMode) {
                 title.textContent = 'Edit User';
                 passwordField.required = false;
@@ -233,7 +233,7 @@
                 passwordField.required = true;
                 clearUserForm();
             }
-            
+
             modal.style.display = 'block';
         }
 
@@ -262,11 +262,11 @@
         // User form submission
         userForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const formData = new FormData(userForm);
             const userData = Object.fromEntries(formData.entries());
             userData.is_active = document.getElementById('user-active').checked;
-            
+
             try {
                 const url = isEditMode ? '/api/users/update' : '/api/users/create';
                 const response = await fetch(url, {
@@ -276,9 +276,9 @@
                     },
                     body: JSON.stringify(userData)
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (response.ok) {
                     closeUserModal();
                     usersTable.replaceData();
@@ -296,7 +296,7 @@
             try {
                 const response = await fetch(`/api/users/${userId}`);
                 const userData = await response.json();
-                
+
                 if (response.ok) {
                     openUserModal(userData);
                 } else {
@@ -309,18 +309,18 @@
 
         async function toggleUserStatus(userId, currentStatus) {
             const action = currentStatus ? 'deactivate' : 'activate';
-            
+
             if (!confirm(`Are you sure you want to ${action} this user?`)) {
                 return;
             }
-            
+
             try {
                 const response = await fetch(`/api/users/${userId}/${action}`, {
                     method: 'POST'
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (response.ok) {
                     usersTable.replaceData();
                     showFlashMessage('success', result.message);
@@ -338,9 +338,9 @@
             const flashDiv = document.createElement('div');
             flashDiv.className = `flash-message flash-${type}`;
             flashDiv.textContent = message;
-            
+
             flashContainer.appendChild(flashDiv);
-            
+
             setTimeout(() => {
                 flashDiv.remove();
             }, 5000);
@@ -358,7 +358,7 @@
             const roleSelect = document.getElementById('user-role');
             const shiftField = document.getElementById('shift-field');
             const shiftSelect = document.getElementById('user-shift');
-            
+
             if (roleSelect.value === 'Incharge') {
                 shiftField.style.display = 'block';
                 shiftSelect.required = true;

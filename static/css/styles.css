@@ -1,774 +1,690 @@
-/* ============================================
-   RESET & BASE
-============================================ */
-*,
-*::before,
-*::after {
+/*--------------------------------------------------
+  Base & Variables
+--------------------------------------------------*/
+:root {
+    --color-bg: #f8fafc;
+    --color-surface: #ffffff;
+    --color-primary: #1e40af;
+    --color-secondary: #6b7280;
+    --color-accent: #6366f1;
+    --color-success: #10b981;
+    --color-danger: #ef4444;
+    --color-warning: #f59e0b;
+    --color-muted: #9ca3af;
+    --color-focus: #c7d2fe;
+    --border-radius: 0.5rem;
+    --spacing: 1rem;
+    --transition: 0.2s ease-in-out;
+    --input-padding: 0.65rem;
+    --input-border-radius: 0.375rem;
+    font-family: 'Inter', sans-serif;
+}
+
+* {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
 }
 
-html,
 body {
-    height: 100%;
+    background: var(--color-bg);
+    color: var(--color-primary);
+    line-height: 1.6;
+    font-size: 0.95rem;
+    transition: background var(--transition), color var(--transition);
 }
 
-body {
-    font-family: 'Segoe UI', Roboto, sans-serif;
-    background: #f0f2f5;
-    color: #222;
-    display: flex;
-    flex-direction: column;
+a {
+    text-decoration: none;
+    color: var(--color-accent);
 }
 
-/* ============================================
-   COLOR PALETTE & VARIABLES
-============================================ */
-:root {
-    --clr-bg: #ffffff;
-    --clr-surface: #fdfdfd;
-    --clr-primary: #0066cc;
-    --clr-primary-d: #005bb5;
-    --clr-secondary: #ff8800;
-    --clr-muted: #6b7280;
-    --clr-income: #e0f7fa;
-    --clr-expense: #ffe5e5;
-    --clr-ceta: #e8f5e9;
-    --clr-carw: #fff3e0;
-    --clr-net: #e3f2fd;
-    --radius: 8px;
-    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
-    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+img {
+    max-width: 100%;
+    display: block;
 }
 
-/* ============================================
-   TYPOGRAPHY
-============================================ */
+button,
+input,
+select {
+    transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
+}
+
+button:active,
+input:focus,
+select:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--color-focus);
+}
+
+/*--------------------------------------------------
+  Typography
+--------------------------------------------------*/
+h1,
+h2,
+h3,
+h4,
+h5 {
+    color: var(--color-primary);
+    margin-bottom: 0.5rem;
+    line-height: 1.2;
+}
+
 h1 {
-    font-size: 1.8rem;
-    color: var(--clr-primary);
+    font-size: 2rem;
 }
 
 h2 {
-    font-size: 1.1rem;
-    margin-bottom: 0.4rem;
-    color: var(--clr-primary-d);
+    font-size: 1.5rem;
 }
 
 p {
-    line-height: 1.4;
+    margin-bottom: var(--spacing);
 }
 
-/* ============================================
-   LAYOUT
-============================================ */
+small {
+    font-size: 0.8rem;
+    color: var(--color-muted);
+}
+
+/*--------------------------------------------------
+  Layout & Containers
+--------------------------------------------------*/
 header {
-    background: var(--clr-bg);
-    padding: 1rem 2rem;
+    background: var(--color-surface);
+    padding: var(--spacing) 2rem;
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
-    box-shadow: var(--shadow-sm);
-    position: relative;
+    border-bottom: 1px solid #e5e7eb;
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
-.header-center {
-    flex: 1;
-    text-align: center;
+.header-center h1 {
+    font-weight: 600;
 }
 
 .header-right {
-    position: absolute;
-    right: 2rem;
     display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-/* User section styles */
-.user-section {
-    background: var(--clr-surface);
-    padding: 1.5rem 2rem;
-    text-align: center;
-    border-bottom: 1px solid #e1e5e9;
-}
-
-.user-name {
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--clr-primary-d);
-    margin-bottom: 0.5rem;
-}
-
-.user-role {
-    font-size: 1.2rem;
-    font-weight: 600;
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    display: inline-block;
-}
-
-.user-role.admin {
-    background: #e53e3e;
-    color: white;
-}
-
-.user-role.developer {
-    background: #38a169;
-    color: white;
-}
-
-.user-role.incharge {
-    background: #3182ce;
-    color: white;
+    gap: var(--spacing);
 }
 
 main {
-    flex: 1;
     padding: 2rem;
-    display: flex;
-    flex-direction: column;
-    gap: 2rem;
 }
 
-/* ============================================
-   BUTTONS
-============================================ */
+/*--------------------------------------------------
+  Buttons & Chips
+--------------------------------------------------*/
 .btn,
 .btn-primary {
-    font-size: 0.95rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--border-radius);
     border: none;
-    border-radius: var(--radius);
-    padding: 0.6rem 1.2rem;
     cursor: pointer;
-    transition: background 0.2s, box-shadow 0.2s;
-}
-
-.btn-primary {
-    background: var(--clr-primary);
-    color: #fff;
-    box-shadow: var(--shadow-sm);
-}
-
-.btn-primary:hover {
-    background: var(--clr-primary-d);
-    box-shadow: var(--shadow-md);
+    font-weight: 500;
+    transition: transform var(--transition);
 }
 
 .btn {
-    background: var(--clr-bg);
-    color: var(--clr-primary);
-    box-shadow: var(--shadow-sm);
+    background: var(--color-secondary);
+    color: #fff;
 }
 
 .btn:hover {
-    background: #f7f7f7;
+    background: #374151;
+    transform: scale(1.02);
 }
 
-/* ============================================
-   CONTROLS & FILTER
-============================================ */
+.btn-primary {
+    background: var(--color-accent);
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: #2563eb;
+    transform: scale(1.02);
+}
+
+.logout-btn {
+    background: transparent;
+    color: var(--color-danger);
+}
+
+.logout-btn:hover {
+    color: #b91c1c;
+}
+
+/* Chip-style toggle */
+.chip {
+    display: inline-block;
+    padding: 0.3rem 0.7rem;
+    border-radius: 9999px;
+    background: #e0e7ff;
+    color: var(--color-primary);
+    cursor: pointer;
+    transition: background var(--transition), transform var(--transition);
+    font-size: 0.75rem;
+    user-select: none;
+}
+
+.chip input[type="checkbox"],
+.chip input[type="radio"] {
+    display: none;
+}
+
+.chip.active {
+    background: var(--color-accent);
+    color: #fff;
+}
+
+.chip:hover {
+    transform: scale(1.05);
+}
+
+/*--------------------------------------------------
+  User Section
+--------------------------------------------------*/
+.user-section {
+    background: var(--color-surface);
+    padding: var(--spacing) 2rem;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing);
+    border-bottom: 1px solid #e5e7eb;
+    flex-wrap: wrap;
+}
+
+.user-name {
+    font-weight: 600;
+}
+
+.user-role {
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--border-radius);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+}
+
+.user-role.incharge {
+    background: var(--color-warning);
+    color: #fff;
+}
+
+.user-role.admin {
+    background: var(--color-accent);
+    color: #fff;
+}
+
+.user-role.developer {
+    background: var(--color-secondary);
+    color: #fff;
+}
+
+.current-datetime {
+    margin-left: auto;
+    color: var(--color-muted);
+}
+
+/*--------------------------------------------------
+  Controls & Summary Cards
+--------------------------------------------------*/
 .controls {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1rem;
+    margin-bottom: 2rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+}
+
+#filter-date {
+    display: none;
+}
+
+#filter-month {
+    padding: 0.5rem;
+    border: 1px solid #d1d5db;
+    border-radius: var(--border-radius);
+    background: #fff;
+    min-width: 150px;
 }
 
 .filter {
     display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
     align-items: center;
-    background: var(--clr-bg);
-    padding: 1rem;
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-sm);
+    gap: 0.5rem;
+    flex-wrap: wrap;
 }
 
 .filter label {
-    font-size: 0.9rem;
-    color: var(--clr-muted);
+    font-weight: 500;
+    color: var(--color-secondary);
 }
 
-.filter input {
-    padding: 0.4rem 0.6rem;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+.filter input,
+.filter button {
+    margin-left: 0.25rem;
 }
 
-/* ============================================
-   SUMMARY CARDS
-============================================ */
 .summary {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 1rem;
-}
-
-/* Income Group Wrapper */
-.income-group {
-    grid-column: span 2;
-    /* span two columns */
-    display: grid;
-    grid-template-rows: auto auto;
-    /* gross above, net below */
-    gap: 0.5rem;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: var(--spacing);
+    flex: 1;
 }
 
 .card {
-    background: var(--clr-surface);
-    padding: 1rem;
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-sm);
+    background: var(--color-surface);
+    padding: var(--spacing);
+    border-radius: var(--border-radius);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     text-align: center;
-    overflow: hidden;
+    transition: transform var(--transition);
+}
+
+.card:hover {
+    transform: translateY(-2px);
 }
 
 .card h2 {
-    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
 }
 
 .card p {
-    margin-top: 0.25rem;
-    font-size: 1.3rem;
-    font-weight: bold;
+    font-size: 1.25rem;
+    font-weight: 600;
 }
 
-/* Accent backgrounds */
-.card.gross {
-    background: var(--clr-income);
+.card.gross p {
+    color: var(--color-accent);
 }
 
-.card.net {
-    background: var(--clr-net);
+.card.net p {
+    color: var(--color-success);
 }
 
-.card.expense {
-    background: var(--clr-expense);
+.card.expense p {
+    color: var(--color-danger);
 }
 
-.card.share-ceta {
-    background: var(--clr-ceta);
+.card.share-ceta p,
+.card.share-carw p {
+    color: var(--color-secondary);
 }
 
-.card.share-carw {
-    background: var(--clr-carw);
-}
-
-/* ============================================
-   TABLE SECTION
-============================================ */
+/*--------------------------------------------------
+  Table Section
+--------------------------------------------------*/
 .table-section {
-    flex: 1;
-    background: var(--clr-bg);
-    padding: 1rem;
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-sm);
-    overflow-x: auto;
+    margin-bottom: 2rem;
 }
 
-/* New order section */
+#orders-table,
+#users-table {
+    background: var(--color-surface);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.tabulator {
+    font-size: 0.9rem;
+}
+
+.tabulator-header {
+    background: var(--color-bg);
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.tabulator-row:nth-child(even) {
+    background: #f3f4f6;
+}
+
+.tabulator-cell {
+    padding: 0.5rem 0.75rem;
+    border-right: 1px solid #e5e7eb;
+}
+
+.tabulator-pagination {
+    padding: var(--spacing);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.tabulator-paginator button {
+    background: transparent;
+    border: 1px solid var(--color-muted);
+    border-radius: var(--border-radius);
+    padding: 0.25rem 0.5rem;
+}
+
+.tabulator-paginator button:hover {
+    background: var(--color-muted);
+    color: #fff;
+}
+
+/*--------------------------------------------------
+  New Order Section & Shift Timer
+--------------------------------------------------*/
 .new-order-section {
     text-align: center;
-    padding: 2rem;
-    background: var(--clr-bg);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-sm);
+    margin-bottom: 2rem;
 }
 
-/* ============================================
-   MODAL OVERLAY & CONTENT 
-============================================ */
-.modal {
-    display: none;
+.shift-timer {
     position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 1000;
-    overflow-y: auto;
-    padding: 2rem 1rem;
+    bottom: var(--spacing);
+    right: var(--spacing);
+    background: var(--color-accent);
+    color: #fff;
+    padding: 0.75rem 1.25rem;
+    border-radius: var(--border-radius);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    font-weight: 500;
+}
+
+/*--------------------------------------------------
+  Modal
+--------------------------------------------------*/
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
 }
 
 .modal-content {
-    background: var(--clr-bg);
-    max-width: 500px;
-    margin: auto;
-    padding: 1.5rem 2rem;
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-md);
+    background: var(--color-surface);
+    padding: 2rem;
+    border-radius: var(--border-radius);
+    max-width: 600px;
+    width: 95%;
     position: relative;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 .modal-close {
     position: absolute;
     top: 1rem;
     right: 1rem;
-    font-size: 1.25rem;
-    color: var(--clr-muted);
+    font-size: 1.5rem;
     cursor: pointer;
+    color: var(--color-muted);
+    background: none;
+    border: none;
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: all var(--transition);
 }
 
 .modal-close:hover {
-    color: var(--clr-primary);
+    background: var(--color-focus);
+    color: var(--color-danger);
 }
 
-/* ============================================
-   FORM STYLES 
-============================================ */
-form {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+.modal-content {
+    background: var(--color-surface);
+    padding: 2rem;
+    border-radius: var(--border-radius);
+    max-width: 700px;
+    width: 100%;
+    position: relative;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.96);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--color-muted);
+}
+
+.modal-close:hover {
+    color: var(--color-danger);
 }
 
 .form-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 1rem;
+    display: flex;
+    gap: var(--spacing);
+    flex-wrap: wrap;
+    margin-bottom: var(--spacing);
 }
 
-label {
+.form-row label {
+    flex: 1 1 250px;
     display: flex;
     flex-direction: column;
-    font-size: 0.9rem;
-    color: var(--clr-muted);
+    font-weight: 500;
 }
 
-input[type="number"],
-input[type="date"],
-input[type="month"],
-input[type="text"],
-input[type="time"],
-select,
-textarea {
+.form-row input[type="text"],
+.form-row input[type="number"],
+.form-row input[type="date"],
+.form-row input[type="month"],
+.form-row select {
+    margin-top: 0.25rem;
     padding: 0.5rem;
-    margin-top: 0.3rem;
-    font-size: 0.9rem;
-    border: 1px solid #ccc;
-    border-radius: var(--radius);
-    background: #fafafa;
-    transition: border-color 0.2s;
-    font-family: inherit;
+    border: 1px solid #d1d5db;
+    border-radius: var(--border-radius);
+    background: #fff;
 }
 
-textarea {
-    resize: vertical;
-    min-height: 80px;
-}
-
-input:focus,
-select:focus,
-textarea:focus {
-    border-color: var(--clr-primary);
-    outline: none;
-}
-
-input[readonly] {
-    background: #eee;
-    color: #555;
-}
-
-/* ============================================
-   ADD-ONS
-============================================ */
-.addons-row {
+.base-service-radio,
+.addon-checkboxes {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.75rem;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
 }
 
-.addons-row label {
+.base-service-radio .radio-label,
+.addon-checkboxes .checkbox-label {
+    margin: 0;
+}
+
+.base-service-radio label,
+.addon-checkboxes label {
+    margin: 0;
+}
+
+.base-service-radio label,
+.addon-checkboxes label,
+.form-row .chip {
+    cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
-    padding: 0.35rem 0.65rem;
-    background: #e8eef3;
-    border-radius: var(--radius);
-    cursor: pointer;
-    font-size: 0.9rem;
-    transition: background 0.15s;
+    justify-content: center;
+    padding: 0.5rem 0.75rem;
+    border-radius: 9999px;
+    border: 1px solid #d1d5db;
+    background: #f9fafb;
+    transition: background var(--transition), color var(--transition);
 }
 
-.addons-row input {
-    margin: 0;
-    transform: scale(1.1);
-}
-
-.addons-row input:checked+span {
-    background: var(--clr-primary);
+input[type="radio"]:checked+label,
+input[type="checkbox"]:checked+label,
+.chip input:checked+.chip {
+    background: var(--color-accent);
     color: #fff;
+    border-color: var(--color-accent);
 }
 
-/* ============================================
-   AUTHENTICATION STYLES
-============================================ */
+/* Toggle (W/Vac Yes/No style) */
+.toggle-container {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.toggle-switch {
+    display: inline-block;
+    position: relative;
+    width: 46px;
+    height: 24px;
+}
+
+.toggle-switch input {
+    display: none;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    background-color: #ccc;
+    border-radius: 999px;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    transition: 0.4s;
+}
+
+.toggle-slider::before {
+    content: "";
+    position: absolute;
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    border-radius: 50%;
+    transition: 0.4s;
+}
+
+.toggle-switch input:checked+.toggle-slider {
+    background-color: var(--color-accent);
+}
+
+.toggle-switch input:checked+.toggle-slider::before {
+    transform: translateX(22px);
+}
+
+/*--------------------------------------------------
+  Auth & Login
+--------------------------------------------------*/
 .auth-body {
-    background: linear-gradient(135deg, var(--clr-primary) 0%, var(--clr-primary-d) 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 100vh;
-    padding: 3rem 1rem;
-    overflow-y: auto;
+    height: 100vh;
+    background: var(--color-bg);
 }
 
 .auth-container {
+    background: var(--color-surface);
+    padding: 2rem;
+    border-radius: var(--border-radius);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     width: 100%;
     max-width: 400px;
 }
 
-.auth-card {
-    background: var(--clr-bg);
-    border-radius: var(--radius);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-    padding: 2rem;
-    margin: 0 auto;
-}
-
-.auth-header {
-    text-align: center;
-    margin-bottom: 2rem;
-}
-
 .auth-header h1 {
-    color: var(--clr-primary);
-    margin-bottom: 0.5rem;
-    font-size: 2rem;
+    font-size: 1.75rem;
 }
 
 .auth-header h2 {
-    color: var(--clr-muted);
-    font-weight: 400;
-    font-size: 1.2rem;
+    font-size: 1.25rem;
+    color: var(--color-secondary);
+    margin-top: 0.5rem;
 }
 
 .auth-form {
+    margin-top: 1.5rem;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: var(--spacing);
 }
 
 .form-group {
     display: flex;
     flex-direction: column;
+    gap: 0.25rem;
 }
-
-.form-group label {
-    font-size: 0.9rem;
-    color: var(--clr-primary-d);
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-}
-
-.form-group input,
-.form-group select,
-.form-group textarea {
-    padding: 0.75rem;
-    font-size: 1rem;
-    border: 2px solid #e1e5e9;
-    border-radius: var(--radius);
-    background: #fafafa;
-    transition: all 0.2s ease;
-    font-family: inherit;
-}
-
-.form-group textarea {
-    resize: vertical;
-    min-height: 80px;
-}
-
-.form-group small {
-    color: var(--clr-muted);
-    font-size: 0.8rem;
-    margin-top: 0.25rem;
-}
-
-#shift-fields {
-    margin-top: 1rem;
-    padding: 1rem;
-    background: #f8f9fa;
-    border-radius: var(--radius);
-    border: 1px solid #e1e5e9;
-}
-
-.form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus {
-    border-color: var(--clr-primary);
-    background: #fff;
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
-}
-
-/* Checkbox styling */
-.checkbox-label {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: flex-start;
-    gap: 0.5rem;
-    cursor: pointer;
-    font-size: 0.9rem;
-    color: var(--clr-muted);
-}
-
-.checkbox-label input[type="checkbox"] {
-    width: auto;
-    margin: 0;
-}
-
-/* Addon checkboxes styling */
-.addon-checkboxes {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin-top: 8px;
-}
-
-.addon-checkboxes .checkbox-label {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: flex-start;
-    gap: 8px;
-    font-size: 14px;
-    cursor: pointer;
-    padding: 0.5rem;
-    border-radius: var(--radius);
-    transition: background-color 0.2s;
-}
-
-.addon-checkboxes .checkbox-label:hover {
-    background-color: #f8f9fa;
-}
-
-.addon-checkboxes input[type="checkbox"] {
-    margin: 0;
-    cursor: pointer;
-}
-
-/* Base service radio buttons */
-.base-service-radio {
+.form-group-remember {
     display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-top: 8px;
+    flex-direction: row;
+    gap: 0.25rem;
+    text-decoration: none;
 }
 
-.radio-label {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-    font-size: 14px;
-    cursor: pointer;
+.form-group input[type="text"],
+.form-group input[type="password"] {
     padding: 0.5rem;
-    border-radius: var(--radius);
-    transition: background-color 0.2s;
-}
-
-.radio-label:hover {
-    background-color: #f8f9fa;
-}
-
-.radio-label input[type="radio"] {
-    margin: 0;
-    cursor: pointer;
+    border: 1px solid #d1d5db;
+    border-radius: var(--border-radius);
 }
 
 .auth-btn {
     width: 100%;
-    padding: 0.875rem;
-    font-size: 1rem;
-    font-weight: 500;
-    margin-top: 0.5rem;
+    margin-top: 1rem;
 }
 
-.auth-footer {
-    text-align: center;
-    margin-top: 2rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid #e1e5e9;
-}
-
-.auth-footer p {
-    margin-bottom: 0.5rem;
-    color: var(--clr-muted);
-    font-size: 0.9rem;
-}
-
-.auth-footer a {
-    color: var(--clr-primary);
-    text-decoration: none;
-    font-weight: 500;
-}
-
-.auth-footer a:hover {
-    text-decoration: underline;
-}
-
-.auth-note {
-    background: #f8f9fa;
-    padding: 1rem;
-    border-radius: var(--radius);
-    border-left: 4px solid var(--clr-secondary);
-    font-size: 0.8rem !important;
-    margin-top: 1rem !important;
-}
-
-/* Flash messages */
 .flash-messages {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--spacing);
 }
 
 .flash-message {
-    padding: 0.75rem 1rem;
-    border-radius: var(--radius);
+    padding: 0.75rem;
+    border-radius: var(--border-radius);
     margin-bottom: 0.5rem;
     font-size: 0.9rem;
 }
 
 .flash-success {
-    background: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
+    background: #d1fae5;
+    color: #065f46;
 }
 
 .flash-error {
-    background: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
+    background: #fee2e2;
+    color: #991b1b;
 }
 
-.flash-warning {
-    background: #fff3cd;
-    color: #856404;
-    border: 1px solid #ffeaa7;
-}
-
-.flash-info {
-    background: #d1ecf1;
-    color: #0c5460;
-    border: 1px solid #bee5eb;
-}
-
-/* ============================================
-   USER MANAGEMENT STYLES
-============================================ */
-.user-header {
-    display: flex;
-    justify-content: space-between;
+/* Fix remember me checkbox */
+.form-group.checkbox-container {
+    flex-direction: row;
     align-items: center;
-    margin-bottom: 1.5rem;
-    padding-bottom: 1rem;
-    border-bottom: 2px solid #e1e5e9;
-}
-
-.user-info {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.user-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: var(--clr-primary);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    font-size: 1.2rem;
-}
-
-.user-details h3 {
-    margin: 0;
-    color: var(--clr-primary-d);
-}
-
-.user-role {
-    font-size: 0.8rem;
-    color: var(--clr-muted);
-    background: #f0f2f5;
-    padding: 0.2rem 0.5rem;
-    border-radius: 12px;
-    display: inline-block;
-    margin-top: 0.2rem;
-}
-
-.user-role.developer {
-    background: #e3f2fd;
-    color: #1565c0;
-}
-
-.user-role.admin {
-    background: #fff3e0;
-    color: #ef6c00;
-}
-
-.user-role.incharge {
-    background: #e8f5e9;
-    color: #2e7d32;
-}
-
-.logout-btn {
-    background: #6c757d;
-    color: white;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: var(--radius);
-    cursor: pointer;
-    font-size: 0.9rem;
-    transition: background 0.2s;
-}
-
-.logout-btn:hover {
-    background: #5a6268;
-}
-
-/* ============================================
-   RESPONSIVE
-============================================ */
-@media (max-width: 640px) {
-
-    .controls,
-    .summary {
-        grid-template-columns: 1fr;
-    }
-
-    .income-group {
-        grid-column: span 1;
-    }
-
-    .auth-card {
-        padding: 1.5rem;
-    }
-
-    .auth-header h1 {
-        font-size: 1.6rem;
-    }
-
-    .user-header {
-        flex-direction: column;
-        gap: 1rem;
-        align-items: flex-start;
-    }
-}
-/* Shift badge styles */
-.shift-badge {
-    padding: 0.2rem 0.5rem;
-    border-radius: 12px;
-    font-size: 0.8rem;
-    font-weight: 600;
-}
-
-.shift-badge.am {
-    background: #e3f2fd;
-    color: #1565c0;
-}
-
-.shift-badge.pm {
-    background: #fff3e0;
-    color: #ef6c00;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
 }

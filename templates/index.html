@@ -32,6 +32,41 @@
     </div>
 
     <main>
+        {% if current_user.has_permission(80) %}
+        <section class="controls">
+            <div class="filter">
+                <!-- <label>Date:</label>
+                <input type="date" id="filter-date" /> -->
+                <label>Month:</label>
+                <input type="month" id="filter-month" />
+                <button id="btn-refresh" class="btn">Refresh</button>
+            </div>
+            <div class="summary">
+                <!-- Income Group -->
+                <div class="card gross">
+                    <h2>Gross Income</h2>
+                    <p id="sum-income">₱ placeholder</p>
+                </div>
+                <div class="card net">
+                    <h2>Net Income</h2>
+                    <p id="sum-net">₱ placeholder</p>
+                </div>
+                <div class="card expense">
+                    <h2>Expenses</h2>
+                    <p id="sum-expenses">₱ placeholder</p>
+                </div>
+                <div class="card share-ceta">
+                    <h2>Cetadcco Share</h2>
+                    <p id="sum-cetadcco">₱ placeholder</p>
+                </div>
+                <div class="card share-carw">
+                    <h2>Carwasher Share</h2>
+                    <p id="sum-carwasher">₱ placeholder</p>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
         <section class="table-section">
             <div id="orders-table"></div>
         </section>
@@ -41,41 +76,6 @@
         </section>
 
         <div id="shift-timer" class="shift-timer"></div>
-
-        {% if current_user.has_permission(80) %}
-        <section class="controls">
-            <div class="filter">
-                <label>Date:</label>
-                <input type="date" id="filter-date" />
-                <label>Month:</label>
-                <input type="month" id="filter-month" />
-                <button id="btn-refresh" class="btn">Refresh</button>
-            </div>
-            <div class="summary">
-                <!-- Income Group -->
-                <div class="card gross">
-                    <h2>Gross Income</h2>
-                    <p id="sum-income">₱0.00</p>
-                </div>
-                <div class="card net">
-                    <h2>Net Income</h2>
-                    <p id="sum-net">₱0.00</p>
-                </div>
-                <div class="card expense">
-                    <h2>Expenses</h2>
-                    <p id="sum-expenses">₱0.00</p>
-                </div>
-                <div class="card share-ceta">
-                    <h2>Cetadcco Share</h2>
-                    <p id="sum-cetadcco">₱0.00</p>
-                </div>
-                <div class="card share-carw">
-                    <h2>Carwasher Share</h2>
-                    <p id="sum-carwasher">₱0.00</p>
-                </div>
-            </div>
-        </section>
-        {% endif %}
     </main>
 
     <!-- Modal -->
@@ -92,6 +92,7 @@
                         </select>
                     </label>
                 </div>
+
                 <div class="form-row">
                     <label>Base Service</label>
                     <div class="base-service-radio">
@@ -113,6 +114,7 @@
                         </label>
                     </div>
                 </div>
+
                 <div class="form-row">
                     <label>
                         Plate No.
@@ -123,19 +125,21 @@
                         <input type="number" id="price" required min="40" step="0.01"
                             placeholder="Price will be set automatically" readonly />
                     </label>
-                </div>
-                <div class="form-row">
                     <label>
                         W/Vac
-                        <input type="checkbox" id="w-vac" />
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="w-vac" />
+                            <span class="toggle-slider"></span>
+                        </div>
                     </label>
                 </div>
+
                 <div class="form-row">
                     <label>Additional Services</label>
                     <div class="addon-checkboxes">
-
                     </div>
                 </div>
+
                 <div class="form-row">
                     <label>
                         Less 40 (₱)
@@ -146,6 +150,7 @@
                         <input type="number" id="c-shares" readonly />
                     </label>
                 </div>
+
                 <div class="form-row">
                     <label>
                         W-Share (₱)
@@ -156,13 +161,18 @@
                         <input type="text" id="w-name" value="{{ current_user.full_name }}" readonly />
                     </label>
                 </div>
+
                 <div class="form-row">
                     <label>
                         SSS (₱)
                         <input type="number" id="sss" value="2" readonly />
                     </label>
                 </div>
-                <button type="submit" class="btn-primary">Add Order</button>
+
+                <div style="text-align: center; margin-top: 1.5rem;">
+                    <button type="submit" class="btn-primary" style="padding: 0.7rem 2rem; font-size: 1rem;">Add
+                        Order</button>
+                </div>
             </form>
         </div>
     </div>

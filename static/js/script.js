@@ -262,7 +262,14 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // Modal
-    btnOpen.onclick = () => modal.style.display = "block";
+    btnOpen.onclick = () => {
+        modal.style.display = "flex";
+        // Center the modal content
+        const modalContent = document.querySelector('.modal-content');
+        if (modalContent) {
+            modalContent.style.margin = '0 auto';
+        }
+    };
     modalClose.onclick = () => modal.style.display = "none";
     window.onclick = e => { if (e.target === modal) modal.style.display = "none"; };
 
@@ -289,16 +296,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 const sRes = await fetch('/api/summary?' + params);
                 const summary = await sRes.json();
 
-                document.getElementById("sum-income").textContent = `₱${summary.income.toFixed(2)}`;
-                document.getElementById("sum-expenses").textContent = `₱${summary.expenses.toFixed(2)}`;
-                document.getElementById("sum-cetadcco").textContent = `₱${summary.cetadcco_share.toFixed(2)}`;
-                document.getElementById("sum-carwasher").textContent = `₱${summary.carwasher_share.toFixed(2)}`;
+                // document.getElementById("sum-income").textContent = `₱${summary.income.toFixed(2)}`;
+                // document.getElementById("sum-expenses").textContent = `₱${summary.expenses.toFixed(2)}`;
+                // document.getElementById("sum-cetadcco").textContent = `₱${summary.cetadcco_share.toFixed(2)}`;
+                // document.getElementById("sum-carwasher").textContent = `₱${summary.carwasher_share.toFixed(2)}`;
 
                 const net = summary.income
                     - summary.expenses
                     - summary.cetadcco_share
                     - summary.carwasher_share;
-                document.getElementById("sum-net").textContent = `₱${net.toFixed(2)}`;
+                // document.getElementById("sum-net").textContent = `₱${net.toFixed(2)}`;
             }
         } catch (error) {
             console.error("Error loading data:", error);
