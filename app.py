@@ -51,7 +51,9 @@ def create_app():
 
                 # Redirect directly to dashboard (no welcome message)
                 next_page = get_redirect_target()
-                return redirect(next_page or url_for('index'))
+                if next_page and next_page != url_for('login'):
+                    return redirect(next_page)
+                return redirect(url_for('index'))
             else:
                 flash('Invalid username or password.', 'error')
         
