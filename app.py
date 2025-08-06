@@ -32,16 +32,16 @@ def create_app():
         """User login route."""
         if current_user.is_authenticated:
             return redirect(url_for('index'))
-        
+
         if request.method == "POST":
             username = request.form.get('username')
             password = request.form.get('password')
             remember_me = bool(request.form.get('remember_me'))
-            
+
             if not username or not password:
                 flash('Please enter both username and password.', 'error')
                 return render_template('login.html')
-            
+
             user = authenticate_user(username, password)
             if user:
                 login_user(user, remember=remember_me)
@@ -56,7 +56,8 @@ def create_app():
                 return redirect(url_for('index'))
             else:
                 flash('Invalid username or password.', 'error')
-        
+                return render_template('login.html')
+
         return render_template('login.html')
     
     @app.route("/register", methods=["GET", "POST"])
@@ -110,7 +111,6 @@ def create_app():
         return render_template('register.html')
     
     @app.route("/logout")
-    @login_required
     def logout():
         """User logout route."""
         logout_user()
