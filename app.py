@@ -51,7 +51,7 @@ def create_app():
 
                 # Redirect directly to dashboard (no welcome message)
                 next_page = get_redirect_target()
-                if next_page and next_page != url_for('login'):
+                if next_page and 'login' not in next_page and 'register' not in next_page:
                     return redirect(next_page)
                 return redirect(url_for('index'))
             else:
@@ -91,7 +91,7 @@ def create_app():
                 return render_template('register.html')
             
             # For incharges, shift is required
-            if role == 'Incharge' and not shift:
+            if role == 'Incharge' and (not shift or shift == ''):
                 flash('Shift selection is required for Incharge role.', 'error')
                 return render_template('register.html')
             
@@ -291,27 +291,27 @@ def create_app():
             data = request.get_json()
             if not data:
                 return jsonify({"error": "No data provided"}), 400
-            
+
             username = data.get('username')
             full_name = data.get('full_name')
             password = data.get('password')
             role = data.get('role')
-            shift_start = data.get('shift_start')
-            shift_end = data.get('shift_end')
-            
+            shift = data.get('shift')
+            print(f"Role: {role}")
+
             if not all([username, full_name, password, role]):
                 return jsonify({"error": "Missing required fields"}), 400
-            
+
             if role not in Role.get_all_roles():
                 return jsonify({"error": "Invalid role"}), 400
-            
-            # For incharges, shift times are required
-            if role == 'Incharge' and (not shift_start or not shift_end):
-                return jsonify({"error": "Shift times required for Incharge role"}), 400
-            
-            user_id = create_user(username, full_name, password, role, shift_start, shift_end)
+
+            # For incharges, shift is required
+            if role == 'Incharge' and (not shift or shift == ''):
+                return jsonify({"error": "Shift is required for Incharge role"}), 400
+
+            user_id = create_user(username, full_name, password, role, shift=shift)
             return jsonify({"message": "User created successfully", "id": user_id}), 201
-            
+
         except ValueError as e:
             return jsonify({"error": str(e)}), 400
         except Exception as e:

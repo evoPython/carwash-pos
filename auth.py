@@ -136,14 +136,14 @@ def is_safe_url(target):
 def get_redirect_target():
     """
     Get the target URL for redirect after login.
-    
+
     Returns:
         str: Safe redirect URL or None
     """
     for target in request.values.get('next'), request.referrer:
         if not target:
             continue
-        if is_safe_url(target):
+        if is_safe_url(target) and 'login' not in target and 'register' not in target:
             return target
     return None
 
