@@ -257,9 +257,29 @@ document.addEventListener("DOMContentLoaded", () => {
     baseServiceRadios.forEach(radio => {
         radio.addEventListener("change", () => {
             updatePrice();
+            updateWVacSwitch();
             calculateShares();
         });
     });
+
+    // Function to update w/vac switch based on selected base service
+    function updateWVacSwitch() {
+        const selectedBaseService = document.querySelector('input[name="base-service"]:checked');
+        if (!selectedBaseService) return;
+
+        const baseServiceName = selectedBaseService.value;
+        const isVacuumService = baseServiceName === 'Bodywash with Vacuum' || baseServiceName === 'Vacuum Only';
+
+        if (wVacCheckbox) {
+            wVacCheckbox.checked = isVacuumService;
+            wVacCheckbox.disabled = isVacuumService;
+
+            // If it's not a vacuum service, enable the checkbox
+            if (!isVacuumService) {
+                wVacCheckbox.disabled = false;
+            }
+        }
+    }
 
     // Modal
     btnOpen.onclick = () => {
