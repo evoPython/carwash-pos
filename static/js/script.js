@@ -222,7 +222,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         // Apply deductions
-        const totalCetadccoShare = cetadccoShare - vacDeduction;
+        const totalCetadccoShare = cetadccoShare;
         const totalWasherShare = washerShare - 2 - vacDeduction; // 2 is for SSS
 
         if (cSharesInput) cSharesInput.value = totalCetadccoShare.toFixed(2);
