@@ -136,6 +136,12 @@ def create_app():
         """User management page - requires admin access."""
         return render_template("users.html")
 
+    @app.route("/summary")
+    @require_admin
+    def summary():
+        """Summary dashboard - requires admin/developer access."""
+        return render_template("summary.html")
+
     # ============================================
     # ORDER API ROUTES (Protected)
     # ============================================
@@ -153,7 +159,14 @@ def create_app():
     @app.route("/api/orders", methods=["GET"])
     @require_login
     def api_list_orders():
-        """List orders - requires login with role-based filtering."""
+        """List orders - requires login with role-based filtering.
+
+        - Non-admin/dev users: show orders where w_name == current_user.full_name
+        AND timestamp is within current user's current shift window.
+        - Admin/dev users: if both 'date' and 'shift' query params are provided,
+        show orders only for that shift/window on that date (regardless of w_name).
+        Otherwise, admin/dev users may use optional date/month filters as before.
+        """
         # Base query for new order structure
         clause = """
             SELECT id, vehicle_name, plate_no, w_vac, addons, price, less_40,
@@ -163,65 +176,117 @@ def create_app():
         """
         params = []
 
-        # date or month filtering if caller provided them
-        date = request.args.get("date")
-        month = request.args.get("month")
-        if date:
-            clause += ' AND DATE(timestamp) = ?'
-            params.append(date)
-        elif month:
-            clause += ' AND strftime("%Y-%m", timestamp) = ?'
-            params.append(month)
+        # Query params
+        date_param = request.args.get("date")   # expected format: "YYYY-MM-DD"
+        month_param = request.args.get("month") # expected format: "YYYY-MM"
+        shift_param = request.args.get("shift") # expected: "AM" or "PM"
 
-        # Determine if user is admin or developer
+        # Determine user role & name
         current_user_full_name = current_user.full_name
         current_user_role      = current_user.role
         is_admin_or_dev        = current_user_role in ['Admin', 'Developer']
 
-        if not is_admin_or_dev:
-            # Compute the CURRENT SHIFT time window for this user
-            user_shift = current_user.shift
-            if not user_shift:
-                return jsonify({"error": "No shift assigned"}), 400
+        # If admin/dev AND they provided BOTH date AND shift -> compute explicit shift window for that date
+        if is_admin_or_dev and date_param and shift_param:
+            # Validate shift_param
+            shift_param = shift_param.upper()
+            if shift_param not in ('AM', 'PM'):
+                return jsonify({"error": "Invalid shift parameter; must be 'AM' or 'PM'."}), 400
 
-            # Manila time now
-            manila_tz = pytz.timezone('Asia/Manila')
-            now = datetime.now(manila_tz)
+            # Parse date_param
+            try:
+                # date_param format: YYYY-MM-DD
+                d = datetime.strptime(date_param, "%Y-%m-%d").date()
+            except ValueError:
+                return jsonify({"error": "Invalid date parameter; must be YYYY-MM-DD."}), 400
 
-            # Determine shift boundaries
-            if user_shift == 'AM':
-                # AM shift: 05:00–17:00 (today)
-                shift_start = now.replace(hour=5, minute=0, second=0, microsecond=0)
-                shift_end   = now.replace(hour=17, minute=0, second=0, microsecond=0)
-            else:
-                # PM shift: 17:00–05:00 (spanning two days)
-                if now.hour >= 17:
-                    # today 17:00 → tomorrow 05:00
-                    shift_start = now.replace(hour=17, minute=0, second=0, microsecond=0)
-                    shift_end   = (now + timedelta(days=1)).replace(hour=5, minute=0, second=0, microsecond=0)
-                elif now.hour < 5:
-                    # still in overnight window that began yesterday 17:00
-                    shift_start = (now - timedelta(days=1)).replace(hour=17, minute=0, second=0, microsecond=0)
-                    shift_end   = now.replace(hour=5, minute=0, second=0, microsecond=0)
-                else:
-                    # we’re in AM hours (05–17), so the PM shift window was yesterday 17:00→today 05:00
-                    shift_start = (now - timedelta(days=1)).replace(hour=17, minute=0, second=0, microsecond=0)
-                    shift_end   = now.replace(hour=5, minute=0, second=0, microsecond=0)
+            # Build shift window (naive datetimes, matching DB format)
+            if shift_param == 'AM':
+                # AM: same date 05:00 -> same date 17:00
+                shift_start = datetime(d.year, d.month, d.day, 5, 0, 0)
+                shift_end   = datetime(d.year, d.month, d.day, 17, 0, 0)
+            else:  # PM
+                # PM: date 17:00 -> date+1 05:00
+                shift_start = datetime(d.year, d.month, d.day, 17, 0, 0)
+                next_day = d + timedelta(days=1)
+                shift_end   = datetime(next_day.year, next_day.month, next_day.day, 5, 0, 0)
 
-            # Make them naive ISO strings (to match DB format)
-            start_str = shift_start.replace(tzinfo=None).isoformat()
-            end_str   = shift_end.replace(tzinfo=None).isoformat()
+            # Format as naive ISO strings (matches DB: YYYY-MM-DDThh:mm:ss[.ffffff])
+            start_str = shift_start.isoformat()
+            end_str   = shift_end.isoformat()
 
-            app.logger.debug(f"USER SHIFT WINDOW for {current_user_full_name} ({user_shift}):")
+            app.logger.debug(f"ADMIN SHIFT WINDOW requested: date={date_param} shift={shift_param}")
             app.logger.debug(f"  START = {start_str}")
             app.logger.debug(f"  END   = {end_str}")
 
-            # Add filters: by carwasher name AND timestamp within current shift
-            clause += ' AND w_name = ? AND timestamp BETWEEN ? AND ?'
-            params.extend([current_user_full_name, start_str, end_str])
+            # Add timestamp BETWEEN clause for that explicit window
+            clause += ' AND timestamp BETWEEN ? AND ?'
+            params.extend([start_str, end_str])
+
+        else:
+            # Non-admin/dev users: restrict to their current shift & their name
+            if not is_admin_or_dev:
+                user_shift = current_user.shift
+                if not user_shift:
+                    return jsonify({"error": "No shift assigned"}), 400
+
+                # Current time in Manila to determine which shift window is "current"
+                manila_tz = pytz.timezone('Asia/Manila')
+                now = datetime.now(manila_tz)
+
+                # Determine current shift window (shift_start, shift_end) as aware datetimes,
+                # then strip tzinfo for DB string format (naive)
+                if user_shift == 'AM':
+                    # AM shift window: today 05:00 -> today 17:00
+                    shift_start = now.replace(hour=5, minute=0, second=0, microsecond=0)
+                    shift_end   = now.replace(hour=17, minute=0, second=0, microsecond=0)
+                else:
+                    # PM shift window spans two dates
+                    if now.hour >= 17:
+                        # we're in today's PM: today 17:00 -> tomorrow 05:00
+                        shift_start = now.replace(hour=17, minute=0, second=0, microsecond=0)
+                        shift_end   = (now + timedelta(days=1)).replace(hour=5, minute=0, second=0, microsecond=0)
+                    elif now.hour < 5:
+                        # we're still in overnight PM shift: yesterday 17:00 -> today 05:00
+                        shift_start = (now - timedelta(days=1)).replace(hour=17, minute=0, second=0, microsecond=0)
+                        shift_end   = now.replace(hour=5, minute=0, second=0, microsecond=0)
+                    else:
+                        # during daytime hours (05:00-17:00) the most recent PM window was yesterday 17:00->today 05:00
+                        shift_start = (now - timedelta(days=1)).replace(hour=17, minute=0, second=0, microsecond=0)
+                        shift_end   = now.replace(hour=5, minute=0, second=0, microsecond=0)
+
+                # Strip tzinfo and format naive ISO strings
+                shift_start_naive = shift_start.replace(tzinfo=None)
+                shift_end_naive   = shift_end.replace(tzinfo=None)
+                start_str = shift_start_naive.isoformat()
+                end_str   = shift_end_naive.isoformat()
+
+                app.logger.debug(f"USER SHIFT WINDOW for {current_user_full_name} ({user_shift}):")
+                app.logger.debug(f"  START = {start_str}")
+                app.logger.debug(f"  END   = {end_str}")
+
+                # Add filters: by carwasher name AND timestamp within current shift
+                clause += ' AND w_name = ? AND timestamp BETWEEN ? AND ?'
+                params.extend([current_user_full_name, start_str, end_str])
+
+            else:
+                # Admin/dev without explicit (date+shift): allow optional date/month filters below
+                # If the caller provided date/month, apply those filters here.
+                if date_param:
+                    clause += ' AND DATE(timestamp) = ?'
+                    params.append(date_param)
+                elif month_param:
+                    clause += ' AND strftime("%Y-%m", timestamp) = ?'
+                    params.append(month_param)
+
+        # If we reached here and the caller was an admin/dev AND they provided date/month but not the combined (date+shift),
+        # the date/month filters were already applied above in the final 'else' branch. For non-admins we already used the
+        # current shift window and ignored date/month query params (this matches original behavior).
 
         # Execute query
         with get_db() as conn:
+            app.logger.debug(f"FINAL SQL clause: {clause}")
+            app.logger.debug(f"FINAL params: {params}")
             rows = conn.execute(clause, params).fetchall()
 
         # Marshal results
