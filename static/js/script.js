@@ -41,7 +41,13 @@ document.addEventListener("DOMContentLoaded", () => {
     // Initialize Tabulator
     function initTable() {
         const cols = [
-            { title: "No.", field: "id", width: 60 },
+            {
+                title: "No.", field: "id", width: 60, formatter: function (cell) {
+                    // Get the row index (1-based) from the row component
+                    const rowIndex = cell.getRow().getPosition();
+                    return rowIndex;
+                }
+            },
             { title: "Vehicle Name", field: "vehicle_name", width: 150 },
             { title: "Plate No.", field: "plate_no", width: 120 },
             { title: "W/Vac", field: "w_vac", width: 80 },
@@ -256,8 +262,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const baseServiceRadios = document.querySelectorAll('input[name="base-service"]');
     baseServiceRadios.forEach(radio => {
         radio.addEventListener("change", () => {
-            updatePrice();
             updateWVacSwitch();
+            updatePrice();
             calculateShares();
         });
     });
@@ -299,6 +305,77 @@ document.addEventListener("DOMContentLoaded", () => {
         // if (dateInput.value) params.set("date", dateInput.value);
         if (monthInput && monthInput.value) params.set("month", monthInput.value);
 
+        // Check if the current shift is active
+        const userShiftElement = document.getElementById("user-shift");
+        const userRoleElement = document.querySelector(".user-role");
+
+        // Debug log
+        if (userRoleElement) {
+            console.log("User role:", userRoleElement.textContent);
+        } else {
+            console.log("User role element not found");
+        }
+
+        // If user is admin or developer, always load data
+        if (userRoleElement && (userRoleElement.textContent === 'Admin' || userRoleElement.textContent === 'Developer')) {
+            try {
+                // Fetch orders first
+                const oRes = await fetch('/api/orders?' + params);
+                if (!oRes.ok) {
+                    console.error('Orders fetch failed:', oRes.status);
+                    return;
+                }
+                const orders = await oRes.json();
+                const rows = orders.map(o => ({ ...o, addons: typeof o.addons === 'object' ? JSON.stringify(o.addons) : o.addons || '' }));
+                table.clearData();
+                table.setData(rows);
+
+                // Only load summary if user has permission (admin/dev)
+                if (document.getElementById("sum-income")) {
+                    const sRes = await fetch('/api/summary?' + params);
+                    const summary = await sRes.json();
+
+                    // document.getElementById("sum-income").textContent = `₱${summary.income.toFixed(2)}`;
+                    // document.getElementById("sum-expenses").textContent = `₱${summary.expenses.toFixed(2)}`;
+                    // document.getElementById("sum-cetadcco").textContent = `₱${summary.cetadcco_share.toFixed(2)}`;
+                    // document.getElementById("sum-carwasher").textContent = `₱${summary.carwasher_share.toFixed(2)}`;
+
+                    const net = summary.income
+                        - summary.expenses
+                        - summary.cetadcco_share
+                        - summary.carwasher_share;
+                    // document.getElementById("sum-net").textContent = `₱${net.toFixed(2)}`;
+                }
+            } catch (error) {
+                console.error("Error loading data:", error);
+            }
+            return;
+        }
+
+        // For regular users, check shift status
+        if (!userShiftElement) {
+            console.error("User shift information not available");
+            return;
+        }
+
+        const userShift = userShiftElement.textContent;
+        const now = new Date();
+        const currentHour = now.getHours();
+
+        // Check if current time is within the user's shift
+        let isWithinShift = false;
+        if (userShift === 'AM') {
+            isWithinShift = currentHour >= 5 && currentHour < 17;
+        } else if (userShift === 'PM') {
+            isWithinShift = currentHour >= 17 || currentHour < 5;
+        }
+
+        // Only load data if the shift is active
+        if (!isWithinShift) {
+            console.log("Current shift is inactive. Not loading orders.");
+            return;
+        }
+
         try {
             // Fetch orders first
             const oRes = await fetch('/api/orders?' + params);
@@ -333,6 +410,23 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (btnRefresh) btnRefresh.addEventListener("click", loadData);
+
+    // Load previous shift data
+    async function loadPreviousShiftData() {
+        try {
+            const response = await fetch('/api/previous-shift-orders');
+            if (!response.ok) {
+                console.error('Previous shift orders fetch failed:', response.status);
+                return;
+            }
+            const orders = await response.json();
+            const rows = orders.map(o => ({ ...o, addons: typeof o.addons === 'object' ? JSON.stringify(o.addons) : o.addons || '' }));
+            table.clearData();
+            table.setData(rows);
+        } catch (error) {
+            console.error("Error loading previous shift data:", error);
+        }
+    }
 
     // Submit new order
     if (form) {
@@ -420,6 +514,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const tableSection = document.querySelector('.table-section');
         const newOrderSection = document.querySelector('.new-order-section');
         const timerElement = document.getElementById("shift-timer");
+        const previousShiftHeader = document.getElementById("previous-shift-header");
 
         if (timerElement) {
             if (isWithinShift) {
@@ -427,11 +522,31 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (tableSection) tableSection.style.display = 'block';
                 if (newOrderSection) newOrderSection.style.display = 'block';
                 timerElement.textContent = `Your shift: ${userShift} (Active)`;
+
+                // Hide previous shift header for active shifts
+                if (previousShiftHeader) previousShiftHeader.style.display = 'none';
+
+                // Load current shift data
+                if (tableEl) {
+                    loadData();
+                }
             } else {
-                // Hide elements outside user's shift
-                if (tableSection) tableSection.style.display = 'none';
+                // Hide new order section but show table for previous shift
                 if (newOrderSection) newOrderSection.style.display = 'none';
+                if (tableSection) tableSection.style.display = 'block';
                 timerElement.textContent = `Your shift: ${userShift} (Inactive - Outside shift hours)`;
+
+                // Show previous shift header only for Incharges with inactive shifts
+                if (previousShiftHeader && userRoleElement && userRoleElement.textContent === 'Incharge') {
+                    previousShiftHeader.style.display = 'block';
+                } else if (previousShiftHeader) {
+                    previousShiftHeader.style.display = 'none';
+                }
+
+                // Load previous shift data
+                if (tableEl) {
+                    loadPreviousShiftData();
+                }
             }
             timerElement.style.display = 'block';
         }

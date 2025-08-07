@@ -320,6 +320,13 @@ main {
 .table-section {
     margin-bottom: 2rem;
 }
+.centered-header {
+    text-align: center;
+    margin-bottom: 1rem;
+    color: var(--color-primary);
+    font-size: 1.25rem;
+    font-weight: 600;
+}
 
 #orders-table,
 #users-table {

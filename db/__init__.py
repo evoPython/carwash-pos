@@ -188,6 +188,9 @@ def add_order(order_dict):
     # Get current time (assuming system is in Manila timezone)
     current_time = datetime.now()
 
+    # TEMPORARY for debugging, REMOVE IN PRODUCTION
+    # current_time = datetime(2025, 8, 7, 16, 8, 0)
+
     # Determine shift based on time (5am-5pm = AM, rest = PM)
     shift = "AM" if 5 <= current_time.hour < 17 else "PM"
 

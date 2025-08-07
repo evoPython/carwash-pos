@@ -8,6 +8,8 @@ from db import (init_db, add_order, start_sync_thread, get_db,
 from db.models import Order, User, Role
 from auth import (init_auth, authenticate_user, require_login,
                   require_admin, require_developer, get_redirect_target)
+import pytz
+from datetime import datetime
 
 def create_app():
     app = Flask(__name__, static_folder="static", template_folder="templates")
@@ -218,6 +220,108 @@ def create_app():
             orders.append(order)
 
         return jsonify(orders), 200
+
+    @app.route("/api/previous-shift-orders", methods=["GET"])
+    @require_login
+    def api_previous_shift_orders():
+        """Get orders from the user's previous shift - for incharges only."""
+        # Only incharges can access this endpoint
+        if current_user.role != 'Incharge':
+            return jsonify({"error": "Access denied"}), 403
+
+        # Get current user's shift
+        user_shift = current_user.shift
+        if not user_shift:
+            return jsonify({"error": "No shift assigned"}), 400
+
+        # Current time in Manila
+        manila_tz = pytz.timezone('Asia/Manila')
+        now = datetime.now(manila_tz)
+
+        # Determine previous shift boundaries
+        if user_shift == 'AM':
+            # AM shift: 05:00–17:00
+            if 5 <= now.hour < 17:
+                # Currently in AM → last AM was yesterday 05:00–17:00
+                start_time = (now - timedelta(days=1)).replace(hour=5, minute=0, second=0, microsecond=0)
+                end_time   = (now - timedelta(days=1)).replace(hour=17, minute=0, second=0, microsecond=0)
+            elif now.hour >= 17:
+                # Currently in PM → last AM was today 05:00–17:00
+                start_time = now.replace(hour=5, minute=0, second=0, microsecond=0)
+                end_time   = now.replace(hour=17, minute=0, second=0, microsecond=0)
+            else:
+                # Currently before 05:00 → still in PM from yesterday → last AM was yesterday 05:00–17:00
+                start_time = (now - timedelta(days=1)).replace(hour=5, minute=0, second=0, microsecond=0)
+                end_time   = (now - timedelta(days=1)).replace(hour=17, minute=0, second=0, microsecond=0)
+        else:
+            # PM shift: 17:00–05:00
+            if now.hour >= 17:
+                # Currently in PM → last PM was yesterday 17:00 → today 05:00
+                start_time = (now - timedelta(days=1)).replace(hour=17, minute=0, second=0, microsecond=0)
+                end_time   = (now + timedelta(days=1)).replace(hour=5, minute=0, second=0, microsecond=0)
+            elif now.hour < 5:
+                # Currently in the tail end of PM → last PM was two nights ago 17:00 → yesterday 05:00
+                start_time = (now - timedelta(days=2)).replace(hour=17, minute=0, second=0, microsecond=0)
+                end_time   = (now - timedelta(days=1)).replace(hour=5, minute=0, second=0, microsecond=0)
+            else:
+                # Currently in AM → last PM was yesterday 17:00 → today 05:00
+                start_time = (now - timedelta(days=1)).replace(hour=17, minute=0, second=0, microsecond=0)
+                end_time   = now.replace(hour=5, minute=0, second=0, microsecond=0)
+
+        # Strip timezone so format matches DB (naive ISO)
+        start_naive = start_time.replace(tzinfo=None)
+        end_naive   = end_time.replace(tzinfo=None)
+        start_str = start_naive.isoformat()   # e.g. "2025-08-07T05:00:00"
+        end_str   = end_naive.isoformat()     # e.g. "2025-08-07T17:00:00"
+
+        # Debug logging
+        # app.logger.debug(f"Previous {user_shift} shift for user {current_user.full_name}:")
+        # app.logger.debug(f"  START = {start_str}")
+        # app.logger.debug(f"  END   = {end_str}")
+
+        # Query orders from previous shift, filtering on shift + full name + timestamp
+        clause = """
+            SELECT id, vehicle_name, plate_no, w_vac, addons, price, less_40,
+                c_shares, w_share, w_name, sss, timestamp, shift, created_by
+            FROM orders
+            WHERE shift     = ?
+            AND w_name    = ?
+            AND timestamp BETWEEN ? AND ?
+        """
+
+        with get_db() as conn:
+            rows = conn.execute(clause, (
+                user_shift,
+                current_user.full_name,
+                start_str,
+                end_str
+            )).fetchall()
+
+        # app.logger.debug(f"FOUND rows: {rows}")
+
+        # Convert to the expected format
+        orders = []
+        for row in rows:
+            order = {
+                'id': row[0],
+                'vehicle_name': row[1],
+                'plate_no': row[2],
+                'w_vac': row[3],
+                'addons': row[4],
+                'price': row[5],
+                'less_40': row[6],
+                'c_shares': row[7],
+                'w_share': row[8],
+                'w_name': row[9],
+                'sss': row[10],
+                'timestamp': row[11],
+                'shift': row[12],
+                'created_by': row[13]
+            }
+            orders.append(order)
+
+        return jsonify(orders), 200
+
 
     @app.route("/api/summary", methods=["GET"])
     @require_login
