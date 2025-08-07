@@ -515,6 +515,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const newOrderSection = document.querySelector('.new-order-section');
         const timerElement = document.getElementById("shift-timer");
         const previousShiftHeader = document.getElementById("previous-shift-header");
+        const userRoleElement = document.querySelector(".user-role");
 
         if (timerElement) {
             if (isWithinShift) {
