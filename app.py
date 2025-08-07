@@ -9,7 +9,7 @@ from db.models import Order, User, Role
 from auth import (init_auth, authenticate_user, require_login,
                   require_admin, require_developer, get_redirect_target)
 import pytz
-from datetime import datetime
+from datetime import datetime, time, timedelta
 
 def create_app():
     app = Flask(__name__, static_folder="static", template_folder="templates")
@@ -154,21 +154,18 @@ def create_app():
     @require_login
     def api_list_orders():
         """List orders - requires login with role-based filtering."""
-        from datetime import datetime, time
-        import pytz
-
-        date = request.args.get("date")
-        month = request.args.get("month")
-
         # Base query for new order structure
         clause = """
             SELECT id, vehicle_name, plate_no, w_vac, addons, price, less_40,
-                   c_shares, w_share, w_name, sss, timestamp, shift, created_by
-            FROM orders WHERE 1=1
+                c_shares, w_share, w_name, sss, timestamp, shift, created_by
+            FROM orders
+            WHERE 1=1
         """
         params = []
 
-        # Date/month filtering
+        # date or month filtering if caller provided them
+        date = request.args.get("date")
+        month = request.args.get("month")
         if date:
             clause += ' AND DATE(timestamp) = ?'
             params.append(date)
@@ -176,49 +173,76 @@ def create_app():
             clause += ' AND strftime("%Y-%m", timestamp) = ?'
             params.append(month)
 
-        # Get current user's full name and role
+        # Determine if user is admin or developer
         current_user_full_name = current_user.full_name
-        current_user_role = current_user.role
+        current_user_role      = current_user.role
+        is_admin_or_dev        = current_user_role in ['Admin', 'Developer']
 
-        # Check if user is admin or developer
-        is_admin_or_dev = current_user_role in ['Admin', 'Developer']
-
-        # Apply filtering based on user type
         if not is_admin_or_dev:
-            # For regular users, filter by W-Name and timestamp day
-            # Get current day in Manila timezone
+            # Compute the CURRENT SHIFT time window for this user
+            user_shift = current_user.shift
+            if not user_shift:
+                return jsonify({"error": "No shift assigned"}), 400
+
+            # Manila time now
             manila_tz = pytz.timezone('Asia/Manila')
-            current_day = datetime.now(manila_tz).strftime('%Y-%m-%d')
+            now = datetime.now(manila_tz)
 
-            # Add conditions for W-Name and timestamp day
-            clause += ' AND w_name = ? AND DATE(timestamp) = ?'
-            params.append(current_user_full_name)
-            params.append(current_day)
+            # Determine shift boundaries
+            if user_shift == 'AM':
+                # AM shift: 05:00–17:00 (today)
+                shift_start = now.replace(hour=5, minute=0, second=0, microsecond=0)
+                shift_end   = now.replace(hour=17, minute=0, second=0, microsecond=0)
+            else:
+                # PM shift: 17:00–05:00 (spanning two days)
+                if now.hour >= 17:
+                    # today 17:00 → tomorrow 05:00
+                    shift_start = now.replace(hour=17, minute=0, second=0, microsecond=0)
+                    shift_end   = (now + timedelta(days=1)).replace(hour=5, minute=0, second=0, microsecond=0)
+                elif now.hour < 5:
+                    # still in overnight window that began yesterday 17:00
+                    shift_start = (now - timedelta(days=1)).replace(hour=17, minute=0, second=0, microsecond=0)
+                    shift_end   = now.replace(hour=5, minute=0, second=0, microsecond=0)
+                else:
+                    # we’re in AM hours (05–17), so the PM shift window was yesterday 17:00→today 05:00
+                    shift_start = (now - timedelta(days=1)).replace(hour=17, minute=0, second=0, microsecond=0)
+                    shift_end   = now.replace(hour=5, minute=0, second=0, microsecond=0)
 
+            # Make them naive ISO strings (to match DB format)
+            start_str = shift_start.replace(tzinfo=None).isoformat()
+            end_str   = shift_end.replace(tzinfo=None).isoformat()
+
+            app.logger.debug(f"USER SHIFT WINDOW for {current_user_full_name} ({user_shift}):")
+            app.logger.debug(f"  START = {start_str}")
+            app.logger.debug(f"  END   = {end_str}")
+
+            # Add filters: by carwasher name AND timestamp within current shift
+            clause += ' AND w_name = ? AND timestamp BETWEEN ? AND ?'
+            params.extend([current_user_full_name, start_str, end_str])
+
+        # Execute query
         with get_db() as conn:
             rows = conn.execute(clause, params).fetchall()
 
-        # Convert to the expected format
+        # Marshal results
         orders = []
         for row in rows:
-            order = {
-                'id': row[0],
+            orders.append({
+                'id':           row[0],
                 'vehicle_name': row[1],
-                'plate_no': row[2],
-                'w_vac': row[3],
-                'addons': row[4],  # Store as string
-                'price': row[5],
-                'less_40': row[6],
-                'c_shares': row[7],
-                'w_share': row[8],
-                'w_name': row[9],
-                'sss': row[10],
-                'timestamp': row[11],
-                'shift': row[12],
-                'created_by': row[13]
-            }
-            orders.append(order)
-
+                'plate_no':     row[2],
+                'w_vac':        row[3],
+                'addons':       row[4],
+                'price':        row[5],
+                'less_40':      row[6],
+                'c_shares':     row[7],
+                'w_share':      row[8],
+                'w_name':       row[9],
+                'sss':          row[10],
+                'timestamp':    row[11],
+                'shift':        row[12],
+                'created_by':   row[13],
+            })
         return jsonify(orders), 200
 
     @app.route("/api/previous-shift-orders", methods=["GET"])
@@ -330,8 +354,6 @@ def create_app():
         # Only admin/dev can see financial summaries
         if current_user.role == 'Incharge':
             return jsonify({"error": "Access denied"}), 403
-        
-        from datetime import datetime
         
         date = request.args.get("date")
         month = request.args.get("month")
