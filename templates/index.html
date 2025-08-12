@@ -75,6 +75,7 @@
 
         <section class="new-order-section">
             <button id="btn-open-modal" class="btn-primary">New Order</button>
+            <button id="btn-temporary" class="btn-primary" style="display: none;">Temporary Button</button>
         </section>
 
         <div id="shift-timer" class="shift-timer"></div>
@@ -174,6 +175,23 @@
                 <div style="text-align: center; margin-top: 1.5rem;">
                     <button type="submit" class="btn-primary" style="padding: 0.7rem 2rem; font-size: 1rem;">Add
                         Order</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Temporary Button Modal -->
+    <div id="temporary-modal" class="modal">
+        <div class="modal-content">
+            <span id="temporary-modal-close" class="modal-close">&times;</span>
+            <h2>Temporary Form</h2>
+            <form id="temporary-form">
+                <div class="form-row">
+                    <p>This is a placeholder modal for the Temporary Button.</p>
+                    <p>Fields will be determined later.</p>
+                </div>
+                <div style="text-align: center; margin-top: 1.5rem;">
+                    <button type="button" id="temporary-modal-submit" class="btn-primary">Submit</button>
                 </div>
             </form>
         </div>

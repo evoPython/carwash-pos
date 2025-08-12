@@ -4,8 +4,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const monthInput = document.getElementById("filter-month");
     const btnRefresh = document.getElementById("btn-refresh");
     const btnOpen = document.getElementById("btn-open-modal");
+    const btnTemporary = document.getElementById("btn-temporary");
     const modal = document.getElementById("modal");
     const modalClose = document.getElementById("modal-close");
+    const temporaryModal = document.getElementById("temporary-modal");
+    const temporaryModalClose = document.getElementById("temporary-modal-close");
+    const temporaryForm = document.getElementById("temporary-form");
     const form = document.getElementById("order-form");
 
     // New form elements
@@ -297,7 +301,25 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
     modalClose.onclick = () => modal.style.display = "none";
-    window.onclick = e => { if (e.target === modal) modal.style.display = "none"; };
+
+    // Temporary Button Modal
+    if (btnTemporary) {
+        btnTemporary.onclick = () => {
+            temporaryModal.style.display = "flex";
+            // Center the modal content
+            const tempModalContent = temporaryModal.querySelector('.modal-content');
+            if (tempModalContent) {
+                tempModalContent.style.margin = '0 auto';
+            }
+        };
+    }
+    if (temporaryModalClose) {
+        temporaryModalClose.onclick = () => temporaryModal.style.display = "none";
+    }
+    window.onclick = e => {
+        if (e.target === modal) modal.style.display = "none";
+        if (e.target === temporaryModal) temporaryModal.style.display = "none";
+    };
 
     // Load orders & summary
     async function loadData() {
@@ -490,6 +512,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function updateShiftTimer() {
         const now = new Date();
         const currentHour = now.getHours();
+        const currentMinutes = now.getMinutes();
 
         // Get the current user's shift from the DOM
         const userShiftElement = document.getElementById("user-shift");
@@ -501,6 +524,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const userShift = userShiftElement.textContent;
+        const userRoleElement = document.querySelector(".user-role");
 
         // Check if current time is within the user's shift
         let isWithinShift = false;
@@ -510,12 +534,23 @@ document.addEventListener("DOMContentLoaded", () => {
             isWithinShift = currentHour >= 17 || currentHour < 5;
         }
 
-        // Show/hide elements based on shift
+        // Special logic for InCharges - show temporary button 30 minutes before shift ends
+        let showTemporaryButton = false;
+        if (userRoleElement && userRoleElement.textContent === 'Incharge' && userShift === 'AM') {
+            // For AM shift, show from 4:30 PM to 5:00 PM
+            showTemporaryButton = (currentHour === 16 && currentMinutes >= 30) || (currentHour === 17 && currentMinutes === 0);
+        } else if (userRoleElement && userRoleElement.textContent === 'Incharge' && userShift === 'PM') {
+
+            showTemporaryButton = (currentHour === 4 && currentMinutes >= 30 || (currentHour === 5 && currentMinutes === 0));
+        }
+
+        // Show/hide elements based on shift and time
         const tableSection = document.querySelector('.table-section');
         const newOrderSection = document.querySelector('.new-order-section');
         const timerElement = document.getElementById("shift-timer");
         const previousShiftHeader = document.getElementById("previous-shift-header");
-        const userRoleElement = document.querySelector(".user-role");
+        const btnTemporary = document.getElementById("btn-temporary");
+        const btnOpen = document.getElementById("btn-open-modal");
 
         if (timerElement) {
             if (isWithinShift) {
@@ -526,6 +561,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 // Hide previous shift header for active shifts
                 if (previousShiftHeader) previousShiftHeader.style.display = 'none';
+
+                // Handle button visibility for InCharges
+                if (userRoleElement && userRoleElement.textContent === 'Incharge') {
+                    // Show temporary button 30 minutes before shift ends
+                    if (showTemporaryButton) {
+                        if (btnTemporary) btnTemporary.style.display = 'inline-block';
+                    } else {
+                        // Show New Order button
+                        if (btnTemporary) btnTemporary.style.display = 'none';
+                    }
+
+                    // Hide both buttons after 5:00 PM
+                    if (currentHour >= 17) {
+                        if (btnTemporary) btnTemporary.style.display = 'none';
+                        if (btnOpen) btnOpen.style.display = 'none';
+                    }
+                }
 
                 // Load current shift data
                 if (tableEl) {
