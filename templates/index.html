@@ -184,12 +184,86 @@
     <div id="temporary-modal" class="modal">
         <div class="modal-content">
             <span id="temporary-modal-close" class="modal-close">&times;</span>
-            <h2>Temporary Form</h2>
+            <h2>Placeholder</h2>
             <form id="temporary-form">
                 <div class="form-row">
-                    <p>This is a placeholder modal for the Temporary Button.</p>
-                    <p>Fields will be determined later.</p>
+                    <div class="form-column">
+                        <!-- First Column, labelled 'SALES'-->
+                        <h3>SALES</h3>
+                        <div class="form-row">
+                            <label>
+                                Total Gross Sales
+                                <input type="number" id="total-gross-sales" value="" readonly />
+                            </label>
+                            <label>
+                                40x
+                                <input type="number" id="40x" value="" readonly />
+                            </label>
+                        </div>
+                        <h3>ADDONS</h3>
+                        <div class="form-row">
+                            <!-- List of all addons from vehicle_types.json -->
+                        </div>
+                    </div>
+
+                    <div class="vertical-separator"></div>
+
+                    <div class="form-column">
+                        <!-- Second Column, labelled 'OTHER INCOME'-->
+                        <h3>OTHER INCOME</h3>
+                        <div class="form-row">
+                            <!-- Button 'Add Other Income' -->
+                            <button id="add-other-income" class="btn-secondary">+ Add Other Income</button>
+                            <div id="other-income-dropdown" class="dropdown" style="display: none;">
+                                <button class="dropdown-item" data-value="Canteen">Canteen</button>
+                                <button class="dropdown-item" data-value="Water">Water</button>
+                            </div>
+                        </div>
+
+                        <h3>EXPENSES</h3>
+
+                        <div class="form-row">
+                            <!-- Table with Name, Description, Amount -->
+                            <table id="expenses-table">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Description</th>
+                                        <th>Amount</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Rows will be added dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="form-row">
+                            <!-- Button 'Add Expense' -->
+                            <button id="add-expense" class="btn-secondary">+ Add Expense</button>
+                        </div>
+
+                        <div class="form-row">
+                            <label>
+                                Wages
+                                <input type="number" id="wages" value="" readonly />
+                            </label>
+                            <label>
+                                GCash
+                                <input type="number" id="gcash" value="" />
+                            </label>
+                        </div>
+
+                        <div class="form-row">
+                            <label>
+                                Total
+                                <!-- smth -->
+                            </label>
+                        </div>
+                    </div>
                 </div>
+
                 <div style="text-align: center; margin-top: 1.5rem;">
                     <button type="button" id="temporary-modal-submit" class="btn-primary">Submit</button>
                 </div>

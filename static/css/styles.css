@@ -455,30 +455,117 @@ main {
     color: var(--color-danger);
 }
 
-.form-row {
-    display: flex;
-    gap: var(--spacing);
-    flex-wrap: wrap;
-    margin-bottom: var(--spacing);
+/* ===== Modal Base ===== */
+#temporary-modal .modal-content {
+    max-width: 900px;
+    /* wider for comfortable 2-column layout */
+    width: 95%;
+    padding: 1.5rem 2rem;
+    box-sizing: border-box;
+    background: #fff;
+    border-radius: var(--border-radius, 8px);
+    overflow-y: auto;
+    max-height: 90vh;
 }
 
+/* ===== Form Row Styling ===== */
+.form-row {
+    display: flex;
+    gap: var(--spacing, 1rem);
+    flex-wrap: wrap;
+    margin-bottom: var(--spacing, 1rem);
+}
+
+/* Label + Field */
 .form-row label {
     flex: 1 1 250px;
     display: flex;
     flex-direction: column;
     font-weight: 500;
+    color: #374151;
 }
 
+/* Inputs & Selects */
 .form-row input[type="text"],
 .form-row input[type="number"],
 .form-row input[type="date"],
 .form-row input[type="month"],
 .form-row select {
     margin-top: 0.25rem;
-    padding: 0.5rem;
+    padding: 0.5rem 0.75rem;
     border: 1px solid #d1d5db;
-    border-radius: var(--border-radius);
+    border-radius: var(--border-radius, 6px);
     background: #fff;
+    font-size: 0.95rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-row input:focus,
+.form-row select:focus {
+    border-color: var(--color-accent, #3b82f6);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    outline: none;
+}
+
+/* ===== Headings ===== */
+#temporary-form h3 {
+    margin: 0.75rem 0 0.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-accent, #3b82f6);
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 0.25rem;
+}
+
+/* ===== Two-Column Layout ===== */
+#temporary-form .form-row:first-of-type {
+    display: flex;
+    align-items: flex-start;
+    gap: 2rem;
+}
+
+#temporary-form .form-column {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 320px;
+}
+
+/* Vertical Separator */
+#temporary-form .vertical-separator {
+    width: 2px;
+    background: var(--color-accent, #3b82f6);
+    margin: 0;
+    align-self: stretch;
+    border-radius: 2px;
+}
+
+/* ===== Buttons ===== */
+#temporary-modal-submit {
+    padding: 0.6rem 1.5rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    background: var(--color-accent, #3b82f6);
+    color: #fff;
+    border: none;
+    border-radius: var(--border-radius, 6px);
+    cursor: pointer;
+    transition: background 0.2s ease-in-out;
+}
+
+#temporary-modal-submit:hover {
+    background: #2563eb;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 900px) {
+    #temporary-form .form-row:first-of-type {
+        flex-direction: column;
+    }
+
+    #temporary-form .vertical-separator {
+        display: none;
+    }
 }
 
 .base-service-radio,
@@ -660,4 +747,217 @@ input[type="checkbox"]:checked+label,
     align-items: center;
     gap: 0.5rem;
     margin-bottom: 0.5rem;
+}
+
+/* Temporary Form Styles */
+.form-column {
+    flex: 1;
+    min-width: 300px;
+    margin-right: 1rem;
+}
+
+.form-column:last-child {
+    margin-right: 0;
+}
+
+.vertical-separator {
+    width: 2px;
+    background: var(--color-accent);
+    height: 100%;
+    margin: 0 1rem;
+}
+
+.sales-section,
+.other-income-section,
+.expenses-section {
+    margin-bottom: 1.5rem;
+}
+
+.sales-item,
+.income-item,
+.expense-item {
+    margin-bottom: 0.75rem;
+}
+
+.sales-item label,
+.income-item label,
+.expense-item label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+}
+
+.sales-item input,
+.income-item input,
+.expense-item input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #d1d5db;
+    border-radius: var(--border-radius);
+    background: #fff;
+}
+
+.addons-section {
+    margin: 1rem 0;
+}
+
+.addon-item {
+    margin-bottom: 0.5rem;
+}
+
+.expense-table {
+    margin-top: 1rem;
+}
+
+#expenses-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#expenses-table th,
+#expenses-table td {
+    padding: 0.5rem;
+    border: 1px solid #d1d5db;
+    text-align: left;
+}
+
+#expenses-table th {
+    background: #f3f4f6;
+}
+
+.btn-secondary {
+    background: var(--color-secondary);
+    color: #fff;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    margin-bottom: 0.5rem;
+}
+
+.btn-secondary:hover {
+    background: #374151;
+}
+
+/* --- Top-level two-column layout only --- */
+#temporary-form>.form-row {
+    display: flex;
+    gap: 1rem;
+    align-items: stretch;
+    /* so separator fills column height */
+    flex-wrap: nowrap;
+    box-sizing: border-box;
+}
+
+/* columns */
+#temporary-form .form-column {
+    flex: 1 1 0;
+    min-width: 280px;
+    /* stack on small screens */
+    display: flex;
+    flex-direction: column;
+    /* keep column content vertical */
+    gap: 1rem;
+}
+
+/* vertical divider */
+#temporary-form .vertical-separator {
+    width: 1px;
+    background: #e0e0e0;
+    align-self: stretch;
+    /* full height of flex container */
+    margin: 0.25rem 0;
+}
+
+/* keep inner rows inside each column stacking vertically */
+#temporary-form .form-column>.form-row {
+    display: block;
+    /* prevents nested rows from becoming horizontal flex rows */
+}
+
+/* helper for small sets of inline inputs (like the Total / 40x pair) */
+#temporary-form .inline-row {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+#temporary-form .inline-row label {
+    flex: 1 1 140px;
+    min-width: 120px;
+}
+
+/* form controls */
+#temporary-form label {
+    display: block;
+    font-size: 0.95rem;
+}
+
+#temporary-form input,
+#temporary-form select,
+#temporary-form textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.4rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+/* responsive behavior */
+@media (max-width: 700px) {
+    #temporary-form>.form-row {
+        flex-direction: column;
+    }
+
+    #temporary-form .vertical-separator {
+        display: none;
+    }
+}
+
+/* Other Income Dropdown Styles */
+#other-income-dropdown {
+    position: absolute;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: var(--border-radius);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    min-width: 150px;
+}
+
+.dropdown-item {
+    display: block;
+    width: 100%;
+    padding: 0.5rem 1rem;
+    background: none;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--transition);
+}
+
+.dropdown-item:hover {
+    background: var(--color-focus);
+}
+
+/* Other Income Item Styles */
+.other-income-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.other-income-item label {
+    flex: 1;
+    font-weight: 500;
+    min-width: 100px;
+}
+
+.other-income-item input {
+    width: 120px;
+    padding: 0.5rem;
+    border: 1px solid #d1d5db;
+    border-radius: var(--border-radius);
+    text-align: right;
 }

@@ -568,14 +568,42 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (showTemporaryButton) {
                         if (btnTemporary) btnTemporary.style.display = 'inline-block';
                     } else {
-                        // Show New Order button
-                        if (btnTemporary) btnTemporary.style.display = 'none';
+                        if (btnTemporary) btnTemporary.style.display = 'inline-block';
                     }
 
-                    // Hide both buttons after 5:00 PM
-                    if (currentHour >= 17) {
-                        if (btnTemporary) btnTemporary.style.display = 'none';
-                        if (btnOpen) btnOpen.style.display = 'none';
+                    // Handle button visibility based on shift and time
+                    if (userShift === 'AM') {
+                        // Hide both buttons after 5:00 PM
+                        if (currentHour >= 17) {
+                            if (btnTemporary) btnTemporary.style.display = 'none';
+                            if (btnOpen) btnOpen.style.display = 'none';
+                        }
+                        // Show btnOpen at 5:00 AM
+                        else if (currentHour === 5) {
+                            if (btnOpen) btnOpen.style.display = 'inline-block';
+                            if (btnTemporary) btnTemporary.style.display = 'none';
+                        }
+                        // Show btnTemporary at 4:30 PM
+                        else if ((currentHour === 16 && currentMinutes >= 30) || (currentHour === 17 && currentMinutes === 0)) {
+                            if (btnTemporary) btnTemporary.style.display = 'inline-block';
+                            if (btnOpen) btnOpen.style.display = 'none';
+                        }
+                    } else if (userShift === 'PM') {
+                        // Hide both buttons after 5:00 AM
+                        if (currentHour >= 5 && currentHour < 17) {
+                            if (btnTemporary) btnTemporary.style.display = 'none';
+                            if (btnOpen) btnOpen.style.display = 'none';
+                        }
+                        // Show btnOpen at 5:00 PM
+                        else if (currentHour === 17) {
+                            if (btnOpen) btnOpen.style.display = 'inline-block';
+                            if (btnTemporary) btnTemporary.style.display = 'none';
+                        }
+                        // Show btnTemporary at 4:30 AM
+                        else if ((currentHour === 4 && currentMinutes >= 30) || (currentHour === 5 && currentMinutes === 0)) {
+                            if (btnTemporary) btnTemporary.style.display = 'inline-block';
+                            if (btnOpen) btnOpen.style.display = 'none';
+                        }
                     }
                 }
 
@@ -621,4 +649,113 @@ document.addEventListener("DOMContentLoaded", () => {
     // Update current datetime every second
     setInterval(updateCurrentDatetime, 1000);
     updateCurrentDatetime(); // Initial call
+    // Other Income functionality
+    const addOtherIncomeBtn = document.getElementById('add-other-income');
+    const otherIncomeDropdown = document.getElementById('other-income-dropdown');
+    const otherIncomeContainer = document.createElement('div');
+    otherIncomeContainer.id = 'other-income-container';
+    otherIncomeContainer.className = 'form-row';
+
+    // Insert the container after the dropdown
+    if (otherIncomeDropdown) {
+        otherIncomeDropdown.parentNode.insertBefore(otherIncomeContainer, otherIncomeDropdown.nextSibling);
+    }
+
+    if (addOtherIncomeBtn) {
+        addOtherIncomeBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            otherIncomeDropdown.style.display = otherIncomeDropdown.style.display === 'none' ? 'block' : 'none';
+        });
+    }
+
+    // Handle dropdown item selection
+    document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('dropdown-item')) {
+            e.preventDefault();
+            e.stopPropagation();
+            const selectedValue = e.target.getAttribute('data-value');
+            addOtherIncomeItem(selectedValue);
+            otherIncomeDropdown.style.display = 'none';
+        } else if (!addOtherIncomeBtn.contains(e.target) && !otherIncomeDropdown.contains(e.target)) {
+            otherIncomeDropdown.style.display = 'none';
+        }
+    });
+
+    function addOtherIncomeItem(name) {
+        // Create a new row for the other income item
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'other-income-item';
+
+        const label = document.createElement('label');
+        label.textContent = name;
+
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = '0';
+        input.step = '0.01';
+        input.placeholder = 'Amount';
+
+        itemDiv.appendChild(label);
+        itemDiv.appendChild(input);
+        otherIncomeContainer.appendChild(itemDiv);
+    }
+
+    // Expenses functionality
+    const addExpenseBtn = document.getElementById('add-expense');
+    const expensesTable = document.getElementById('expenses-table').querySelector('tbody');
+
+    if (addExpenseBtn) {
+        addExpenseBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            addExpenseRow();
+        });
+    }
+
+    function addExpenseRow() {
+        const row = document.createElement('tr');
+
+        // Name column
+        const nameCell = document.createElement('td');
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.placeholder = 'Name';
+        nameCell.appendChild(nameInput);
+
+        // Description column
+        const descCell = document.createElement('td');
+        const descInput = document.createElement('input');
+        descInput.type = 'text';
+        descInput.placeholder = 'Description';
+        descCell.appendChild(descInput);
+
+        // Amount column
+        const amountCell = document.createElement('td');
+        const amountInput = document.createElement('input');
+        amountInput.type = 'number';
+        amountInput.min = '0';
+        amountInput.step = '0.01';
+        amountInput.placeholder = 'Amount';
+        amountCell.appendChild(amountInput);
+
+        // Action column (delete button)
+        const actionCell = document.createElement('td');
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.className = 'btn-secondary';
+        deleteBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            row.remove();
+        });
+        actionCell.appendChild(deleteBtn);
+
+        // Append all cells to the row
+        row.appendChild(nameCell);
+        row.appendChild(descCell);
+        row.appendChild(amountCell);
+        row.appendChild(actionCell);
+
+        // Add the row to the table
+        expensesTable.appendChild(row);
+    }
 });
