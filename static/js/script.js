@@ -311,6 +311,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tempModalContent) {
                 tempModalContent.style.margin = '0 auto';
             }
+            // Calculate and display values when modal opens
+            calculateTemporaryFormValues();
         };
     }
     if (temporaryModalClose) {
@@ -320,6 +322,188 @@ document.addEventListener("DOMContentLoaded", () => {
         if (e.target === modal) modal.style.display = "none";
         if (e.target === temporaryModal) temporaryModal.style.display = "none";
     };
+
+    // Function to calculate values for the temporary form
+    async function calculateTemporaryFormValues() {
+        // Get the current user's shift
+        const userShiftElement = document.getElementById("user-shift");
+        if (!userShiftElement) {
+            console.error("User shift information not available");
+            return;
+        }
+
+        const userShift = userShiftElement.textContent;
+        const now = new Date();
+        const manilaTzOffset = 8 * 60; // UTC+8 in minutes
+        const manilaTime = new Date(now.getTime() + (manilaTzOffset - now.getTimezoneOffset()) * 60000);
+
+        // Determine the current shift boundaries
+        let shiftStart, shiftEnd;
+
+        if (userShift === 'AM') {
+            // AM shift: 5:00 AM - 5:00 PM
+            shiftStart = new Date(manilaTime);
+            shiftStart.setHours(5, 0, 0, 0);
+
+            shiftEnd = new Date(manilaTime);
+            shiftEnd.setHours(17, 0, 0, 0);
+        } else {
+            // PM shift: 5:00 PM - 5:00 AM next day
+            if (manilaTime.getHours() >= 17) {
+                // Current day PM shift
+                shiftStart = new Date(manilaTime);
+                shiftStart.setHours(17, 0, 0, 0);
+
+                shiftEnd = new Date(manilaTime);
+                shiftEnd.setDate(shiftEnd.getDate() + 1); // Next day
+                shiftEnd.setHours(5, 0, 0, 0);
+            } else {
+                // Overnight PM shift (before 5:00 AM)
+                shiftStart = new Date(manilaTime);
+                shiftStart.setDate(shiftStart.getDate() - 1); // Previous day
+                shiftStart.setHours(17, 0, 0, 0);
+
+                shiftEnd = new Date(manilaTime);
+                shiftEnd.setHours(5, 0, 0, 0);
+            }
+        }
+
+        // Format dates for API
+        const formatDate = (date) => date.toISOString().split('.')[0] + "Z";
+
+        try {
+            // Fetch orders for the current shift
+            const response = await fetch(`/api/orders?date=${shiftStart.toISOString().split('T')[0]}&shift=${userShift}`);
+            if (!response.ok) {
+                console.error('Failed to fetch orders for calculation');
+                return;
+            }
+
+            const orders = await response.json();
+
+            // Filter orders within the shift time range
+            const ordersInShift = orders.filter(order => {
+                const orderTime = new Date(order.timestamp);
+                return orderTime >= shiftStart && orderTime <= shiftEnd;
+            });
+
+            // Calculate Total Gross Sales with new logic
+            let totalGrossSales = 0;
+
+            // Load vehicle types first
+            const vehicleTypesResponse = await fetch('/static/dict/vehicle_types.json');
+            const vehicleTypesData = await vehicleTypesResponse.json();
+
+            for (const order of ordersInShift) {
+                // Get the price, vehicle name, and addons
+                const price = parseFloat(order.price) || 0;
+                const vehicleName = order.vehicle_name;
+                const addons = order.addons ? order.addons.split(', ') : [];
+
+                // Calculate the sum of addons prices with percentage adjustment
+                let addonsTotal = 0;
+                if (vehicleTypesData[vehicleName]) {
+                    addons.forEach(addon => {
+                        // Skip base services
+                        if (['Bodywash', 'Bodywash with Vacuum', 'Vacuum Only', 'Spray Only'].includes(addon)) {
+                            return;
+                        }
+
+                        const addonPrice = vehicleTypesData[vehicleName][addon];
+                        if (addonPrice !== undefined && addonShares[addon]) {
+                            // Apply the cetadcco share percentage to the addon price
+                            addonsTotal += addonPrice * addonShares[addon].cetadcco;
+                        }
+                    });
+                }
+
+                // Subtract addons total from price
+                const priceAfterAddons = price - addonsTotal;
+
+                // Subtract 40 and multiply by 0.7
+                const modifiedPrice = (priceAfterAddons - 40) * 0.7;
+
+                // Add to total gross sales
+                totalGrossSales += modifiedPrice;
+            }
+
+            // Calculate 40x (40 * number of records)
+            const fortyX = ordersInShift.length * 40;
+
+            // Calculate addons sum with percentage adjustment
+            const addonsSum = {};
+
+            ordersInShift.forEach(order => {
+                const vehicleName = order.vehicle_name;
+                const addons = order.addons ? order.addons.split(', ') : [];
+
+                if (vehicleTypes[vehicleName]) {
+                    addons.forEach(addon => {
+                        // Skip base services
+                        if (['Bodywash', 'Bodywash with Vacuum', 'Vacuum Only', 'Spray Only'].includes(addon)) {
+                            return;
+                        }
+
+                        const addonPrice = vehicleTypes[vehicleName][addon];
+                        if (addonPrice !== undefined && addonShares[addon]) {
+                            // Apply the cetadcco share percentage to the addon price
+                            const adjustedPrice = addonPrice * addonShares[addon].cetadcco;
+                            if (!addonsSum[addon]) {
+                                addonsSum[addon] = 0;
+                            }
+                            addonsSum[addon] += adjustedPrice;
+                        }
+                    });
+                }
+            });
+
+            console.log(totalGrossSales);
+            console.log(addonsSum);
+            console.log(fortyX);
+
+            // Update the form fields
+            document.getElementById('total-gross-sales').value = totalGrossSales.toFixed(2);
+            document.getElementById('40x').value = fortyX.toFixed(2);
+
+            // Update addons display
+            const addonsContainer = document.querySelector('#temporary-form .form-column:first-child .form-row:nth-child(2)');
+            if (addonsContainer) {
+                addonsContainer.innerHTML = '';
+
+                // Create a document fragment for better performance
+                const fragment = document.createDocumentFragment();
+
+                // Add each addon sum
+                for (const [addonName, addonTotal] of Object.entries(addonsSum)) {
+                    const label = document.createElement('label');
+                    label.textContent = `${addonName} [₱${addonTotal.toFixed(2)}]`;
+                    fragment.appendChild(label);
+                    fragment.appendChild(document.createElement('br'));
+                }
+
+                // Calculate total addons sum
+                const totalAddons = Object.values(addonsSum).reduce((sum, value) => sum + value, 0);
+
+                // Add total addons
+                const totalLabel = document.createElement('label');
+                totalLabel.style.fontWeight = 'bold';
+                totalLabel.textContent = `Total Addons: ₱${totalAddons.toFixed(2)}`;
+                fragment.appendChild(totalLabel);
+
+                // Calculate and display total sales
+                const totalSales = totalGrossSales + fortyX + totalAddons;
+                const totalSalesLabel = document.createElement('label');
+                totalSalesLabel.style.fontWeight = 'bold';
+                totalSalesLabel.textContent = `Total Sales: ₱${totalSales.toFixed(2)}`;
+                fragment.appendChild(totalSalesLabel);
+
+                addonsContainer.appendChild(fragment);
+            }
+
+        } catch (error) {
+            console.error("Error calculating temporary form values:", error);
+        }
+    }
 
     // Load orders & summary
     async function loadData() {
