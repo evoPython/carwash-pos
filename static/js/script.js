@@ -412,7 +412,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         const addonPrice = vehicleTypesData[vehicleName][addon];
                         if (addonPrice !== undefined && addonShares[addon]) {
                             // Apply the cetadcco share percentage to the addon price
-                            addonsTotal += addonPrice * addonShares[addon].cetadcco;
+                            addonsTotal += addonPrice; // * addonShares[addon].cetadcco;
                         }
                     });
                 }
@@ -425,6 +425,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 // Add to total gross sales
                 totalGrossSales += modifiedPrice;
+
+                console.log(price);
+                console.log(addonsTotal);
+                console.log(modifiedPrice);
             }
 
             // Calculate 40x (40 * number of records)
@@ -466,7 +470,7 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('40x').value = fortyX.toFixed(2);
 
             // Update addons display
-            const addonsContainer = document.querySelector('#temporary-form .form-column:first-child .form-row:nth-child(2)');
+            const addonsContainer = document.getElementById('addons-container');
             if (addonsContainer) {
                 addonsContainer.innerHTML = '';
 
@@ -475,27 +479,42 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 // Add each addon sum
                 for (const [addonName, addonTotal] of Object.entries(addonsSum)) {
+                    const div = document.createElement('div');
+                    div.className = 'form-row';
+
                     const label = document.createElement('label');
-                    label.textContent = `${addonName} [₱${addonTotal.toFixed(2)}]`;
-                    fragment.appendChild(label);
-                    fragment.appendChild(document.createElement('br'));
+                    label.textContent = addonName;
+                    label.style.flex = '1';
+                    label.style.minWidth = '120px';
+
+                    const input = document.createElement('input');
+                    input.type = 'number';
+                    input.value = addonTotal.toFixed(2);
+                    input.readOnly = true;
+                    input.style.flex = '1';
+                    input.style.minWidth = '100px';
+
+                    div.appendChild(label);
+                    div.appendChild(input);
+                    fragment.appendChild(div);
                 }
 
                 // Calculate total addons sum
                 const totalAddons = Object.values(addonsSum).reduce((sum, value) => sum + value, 0);
 
-                // Add total addons
-                const totalLabel = document.createElement('label');
-                totalLabel.style.fontWeight = 'bold';
-                totalLabel.textContent = `Total Addons: ₱${totalAddons.toFixed(2)}`;
-                fragment.appendChild(totalLabel);
-
                 // Calculate and display total sales
                 const totalSales = totalGrossSales + fortyX + totalAddons;
+
+                // Add total sales
+                const totalSalesDiv = document.createElement('div');
+                totalSalesDiv.className = 'form-row';
+
                 const totalSalesLabel = document.createElement('label');
                 totalSalesLabel.style.fontWeight = 'bold';
                 totalSalesLabel.textContent = `Total Sales: ₱${totalSales.toFixed(2)}`;
-                fragment.appendChild(totalSalesLabel);
+                totalSalesDiv.appendChild(totalSalesLabel);
+
+                fragment.appendChild(totalSalesDiv);
 
                 addonsContainer.appendChild(fragment);
             }
@@ -765,12 +784,12 @@ document.addEventListener("DOMContentLoaded", () => {
                         // Show btnOpen at 5:00 AM
                         else if (currentHour === 5) {
                             if (btnOpen) btnOpen.style.display = 'inline-block';
-                            if (btnTemporary) btnTemporary.style.display = 'none';
+                            if (btnTemporary) btnTemporary.style.display = 'inline-block';
                         }
                         // Show btnTemporary at 4:30 PM
                         else if ((currentHour === 16 && currentMinutes >= 30) || (currentHour === 17 && currentMinutes === 0)) {
                             if (btnTemporary) btnTemporary.style.display = 'inline-block';
-                            if (btnOpen) btnOpen.style.display = 'none';
+                            if (btnOpen) btnOpen.style.display = 'inline-block';
                         }
                     } else if (userShift === 'PM') {
                         // Hide both buttons after 5:00 AM
