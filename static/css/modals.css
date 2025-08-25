@@ -1,0 +1,332 @@
+/*--------------------------------------------------
+  Modal
+--------------------------------------------------*/
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+.modal-content {
+    background: var(--color-surface);
+    padding: 2rem;
+    border-radius: var(--border-radius);
+    max-width: 600px;
+    width: 95%;
+    position: relative;
+    box-shadow: var(--box-shadow-lg);
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: modalContentFadeIn 0.3s ease-out;
+    margin: 0 auto;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes modalContentFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--color-muted);
+    background: none;
+    border: none;
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: all var(--transition);
+}
+
+.modal-close:hover {
+    background: var(--color-focus);
+    color: var(--color-danger);
+    transform: rotate(90deg);
+}
+
+/* ===== Modal Base ===== */
+#temporary-modal .modal-content {
+    max-width: 900px;
+    /* wider for comfortable 2-column layout */
+    width: 95%;
+    padding: 1.5rem 2rem;
+    box-sizing: border-box;
+    background: #fff;
+    border-radius: var(--border-radius, 8px);
+    overflow-y: auto;
+    max-height: 90vh;
+}
+
+/* ===== Form Row Styling ===== */
+.form-row {
+    display: flex;
+    gap: var(--spacing, 1rem);
+    flex-wrap: wrap;
+    margin-bottom: var(--spacing, 1rem);
+}
+
+/* Label + Field */
+.form-row label {
+    flex: 1 1 250px;
+    display: flex;
+    flex-direction: column;
+    font-weight: 500;
+    color: #374151;
+}
+
+/* Inputs & Selects */
+.form-row input[type="text"],
+.form-row input[type="number"],
+.form-row input[type="date"],
+.form-row input[type="month"],
+.form-row select {
+    margin-top: 0.25rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: var(--border-radius, 6px);
+    background: #fff;
+    font-size: 0.95rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-row input:focus,
+.form-row select:focus {
+    border-color: var(--color-accent, #3b82f6);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    outline: none;
+}
+
+/* ===== Headings ===== */
+#temporary-form h3 {
+    margin: 0.75rem 0 0.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-accent, #3b82f6);
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 0.25rem;
+}
+
+/* ===== Two-Column Layout ===== */
+#temporary-form .form-row:first-of-type {
+    display: flex;
+    align-items: flex-start;
+    gap: 2rem;
+}
+
+#temporary-form .form-column {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 320px;
+}
+
+/* Vertical Separator */
+#temporary-form .vertical-separator {
+    width: 2px;
+    background: var(--color-accent, #3b82f6);
+    margin: 0;
+    align-self: stretch;
+    border-radius: 2px;
+}
+
+/* ===== Buttons ===== */
+#temporary-modal-submit {
+    padding: 0.6rem 1.5rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    background: var(--color-accent, #3b82f6);
+    color: #fff;
+    border: none;
+    border-radius: var(--border-radius, 6px);
+    cursor: pointer;
+    transition: background 0.2s ease-in-out, transform 0.2s ease-in-out;
+}
+
+#temporary-modal-submit:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 900px) {
+    #temporary-form .form-row:first-of-type {
+        flex-direction: column;
+    }
+
+    #temporary-form .vertical-separator {
+        display: none;
+    }
+}
+
+.base-service-radio,
+.addon-checkboxes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.base-service-radio .radio-label,
+.addon-checkboxes .checkbox-label {
+    margin: 0;
+}
+
+.base-service-radio label,
+.addon-checkboxes label {
+    margin: 0;
+}
+
+.base-service-radio label,
+.addon-checkboxes label,
+.form-row .chip {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 0.75rem;
+    border-radius: 9999px;
+    border: 1px solid #d1d5db;
+    background: #f9fafb;
+    transition: background var(--transition), color var(--transition), transform var(--transition);
+}
+
+.base-service-radio label:hover,
+.addon-checkboxes label:hover,
+.form-row .chip:hover {
+    transform: translateY(-1px);
+}
+
+input[type="radio"]:checked+label,
+input[type="checkbox"]:checked+label,
+.chip input:checked+.chip {
+    background: var(--color-accent);
+    color: #fff;
+    border-color: var(--color-accent);
+}
+
+/* Toggle (W/Vac Yes/No style) */
+.toggle-container {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.toggle-switch {
+    display: inline-block;
+    position: relative;
+    width: 46px;
+    height: 24px;
+}
+
+.toggle-switch input {
+    display: none;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    background-color: #ccc;
+    border-radius: 999px;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    transition: 0.4s;
+}
+
+.toggle-slider::before {
+    content: "";
+    position: absolute;
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    border-radius: 50%;
+    transition: 0.4s;
+}
+
+.toggle-switch input:checked+.toggle-slider {
+    background-color: var(--color-accent);
+}
+
+.toggle-switch input:checked+.toggle-slider::before {
+    transform: translateX(22px);
+}
+
+/*--------------------------------------------------
+  Animations
+--------------------------------------------------*/
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/*--------------------------------------------------
+  Utility Classes
+--------------------------------------------------*/
+.fade-in {
+    animation: fadeIn 0.3s ease-out forwards;
+}
+
+.fade-in-up {
+    animation: fadeInUp 0.4s ease-out forwards;
+}
+
+.pulse {
+    animation: pulse 2s infinite;
+}

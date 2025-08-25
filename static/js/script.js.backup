@@ -42,9 +42,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // Load vehicle types and initialize form
     loadVehicleTypes();
 
-    // Check for shift summary on page load
-    checkShiftSummaryExists();
-
     // Initialize Tabulator
     function initTable() {
         const cols = [
@@ -714,7 +711,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (priceInput) priceInput.value = '';
             } else {
                 const error = await r.json();
-                showError("Order Failed", "Failed to add order: " + (error.error || "Unknown error"));
+                alert("Failed to add order: " + (error.error || "Unknown error"));
             }
         });
     }
@@ -745,6 +742,16 @@ document.addEventListener("DOMContentLoaded", () => {
             isWithinShift = currentHour >= 17 || currentHour < 5;
         }
 
+        // Special logic for InCharges - show temporary button 30 minutes before shift ends
+        let showTemporaryButton = false;
+        if (userRoleElement && userRoleElement.textContent === 'Incharge' && userShift === 'AM') {
+            // For AM shift, show from 4:30 PM to 5:00 PM
+            showTemporaryButton = (currentHour === 16 && currentMinutes >= 30) || (currentHour === 17 && currentMinutes === 0);
+        } else if (userRoleElement && userRoleElement.textContent === 'Incharge' && userShift === 'PM') {
+
+            showTemporaryButton = (currentHour === 4 && currentMinutes >= 30 || (currentHour === 5 && currentMinutes === 0));
+        }
+
         // Show/hide elements based on shift and time
         const tableSection = document.querySelector('.table-section');
         const newOrderSection = document.querySelector('.new-order-section');
@@ -752,18 +759,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const previousShiftHeader = document.getElementById("previous-shift-header");
         const btnTemporary = document.getElementById("btn-temporary");
         const btnOpen = document.getElementById("btn-open-modal");
-
-        // Special logic for InCharges - show temporary button 30 minutes before shift ends
-        let showTemporaryButton = false;
-        if (userRoleElement && userRoleElement.textContent === 'Incharge') {
-            if (userShift === 'AM') {
-                // For AM shift, show from 4:30 PM to 5:00 PM
-                showTemporaryButton = (currentHour === 16 && currentMinutes >= 30) || currentHour === 17;
-            } else if (userShift === 'PM') {
-                // For PM shift, show from 4:30 AM to 5:00 AM
-                showTemporaryButton = (currentHour === 4 && currentMinutes >= 30) || currentHour === 5;
-            }
-        }
 
         if (timerElement) {
             if (isWithinShift) {
@@ -775,25 +770,49 @@ document.addEventListener("DOMContentLoaded", () => {
                 // Hide previous shift header for active shifts
                 if (previousShiftHeader) previousShiftHeader.style.display = 'none';
 
-                // Order button logic - always visible during active shift
-                if (btnOpen) {
-                    btnOpen.style.display = 'inline-block';
-                }
-
-                // Temporary button logic - only for InCharges 30 minutes before shift ends
+                // Handle button visibility for InCharges
                 if (userRoleElement && userRoleElement.textContent === 'Incharge') {
-                    if (btnTemporary) {
-                        // Check if shift summary exists and override time-based logic
-                        if (summaryAlreadyExists) {
-                            btnTemporary.style.display = 'none';
-                        } else if (showTemporaryButton) {
-                            btnTemporary.style.display = 'inline-block';
-                        } else {
-                            btnTemporary.style.display = 'none';
+                    // Show temporary button 30 minutes before shift ends
+                    if (showTemporaryButton) {
+                        if (btnTemporary) btnTemporary.style.display = 'inline-block';
+                    } else {
+                        if (btnTemporary) btnTemporary.style.display = 'inline-block';
+                    }
+
+                    // Handle button visibility based on shift and time
+                    if (userShift === 'AM') {
+                        // Hide both buttons after 5:00 PM
+                        if (currentHour >= 17) {
+                            if (btnTemporary) btnTemporary.style.display = 'none';
+                            if (btnOpen) btnOpen.style.display = 'none';
+                        }
+                        // Show btnOpen at 5:00 AM
+                        else if (currentHour === 5) {
+                            if (btnOpen) btnOpen.style.display = 'inline-block';
+                            if (btnTemporary) btnTemporary.style.display = 'inline-block';
+                        }
+                        // Show btnTemporary at 4:30 PM
+                        else if ((currentHour === 16 && currentMinutes >= 30) || (currentHour === 17 && currentMinutes === 0)) {
+                            if (btnTemporary) btnTemporary.style.display = 'inline-block';
+                            if (btnOpen) btnOpen.style.display = 'inline-block';
+                        }
+                    } else if (userShift === 'PM') {
+                        // Hide both buttons after 5:00 AM
+                        if (currentHour >= 5 && currentHour < 17) {
+                            if (btnTemporary) btnTemporary.style.display = 'none';
+                            if (btnOpen) btnOpen.style.display = 'none';
+                        }
+                        // Show btnOpen at 5:00 PM
+                        else if (currentHour === 17) {
+                            if (btnOpen) btnOpen.style.display = 'inline-block';
+                            if (btnTemporary) btnTemporary.style.display = 'none';
+                        }
+                        // Show btnTemporary at 4:30 AM
+                        else if ((currentHour === 4 && currentMinutes >= 30) || (currentHour === 5 && currentMinutes === 0)) {
+                            if (btnTemporary) btnTemporary.style.display = 'inline-block';
+                            if (btnOpen) btnOpen.style.display = 'none';
                         }
                     }
-                } else if (btnTemporary) {
-                    btnTemporary.style.display = 'none';
                 }
 
                 // Load current shift data
@@ -805,10 +824,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (newOrderSection) newOrderSection.style.display = 'none';
                 if (tableSection) tableSection.style.display = 'block';
                 timerElement.textContent = `Your shift: ${userShift} (Inactive - Outside shift hours)`;
-
-                // Hide both buttons when shift is inactive
-                if (btnOpen) btnOpen.style.display = 'none';
-                if (btnTemporary) btnTemporary.style.display = 'none';
 
                 // Show previous shift header only for Incharges with inactive shifts
                 if (previousShiftHeader && userRoleElement && userRoleElement.textContent === 'Incharge') {
@@ -896,8 +911,6 @@ document.addEventListener("DOMContentLoaded", () => {
         deleteBtn.addEventListener('click', (e) => {
             e.preventDefault();
             itemDiv.remove();
-            updateOtherIncomeTotal();
-            updateGrandTotal();
         });
 
         itemDiv.appendChild(label);
@@ -951,8 +964,6 @@ document.addEventListener("DOMContentLoaded", () => {
         deleteBtn.addEventListener('click', (e) => {
             e.preventDefault();
             row.remove();
-            updateExpensesTotal();
-            updateGrandTotal();
         });
         actionCell.appendChild(deleteBtn);
 
@@ -977,22 +988,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Display the total
         let otherIncomeTotalElement = document.getElementById('other-income-total');
-        if (otherIncomeTotalElement) {
-            otherIncomeTotalElement.remove();
+        if (!otherIncomeTotalElement) {
+            // Create the total display if it doesn't exist
+            otherIncomeTotalElement = document.createElement('div');
+            otherIncomeTotalElement.id = 'other-income-total';
+            otherIncomeTotalElement.className = 'form-row';
+            otherIncomeTotalElement.style.fontWeight = 'bold';
+            otherIncomeTotalElement.style.marginTop = '10px';
+
+            const otherIncomeContainer = document.getElementById('other-income-container');
+            if (otherIncomeContainer) {
+                otherIncomeContainer.appendChild(otherIncomeTotalElement);
+            }
         }
 
-        // Create the total display
-        otherIncomeTotalElement = document.createElement('div');
-        otherIncomeTotalElement.id = 'other-income-total';
-        otherIncomeTotalElement.className = 'form-row';
-        otherIncomeTotalElement.style.fontWeight = 'bold';
-        otherIncomeTotalElement.style.marginTop = '10px';
         otherIncomeTotalElement.textContent = `Total: ₱${total.toFixed(2)}`;
-
-        const otherIncomeContainer = document.getElementById('other-income-container');
-        if (otherIncomeContainer) {
-            otherIncomeContainer.appendChild(otherIncomeTotalElement);
-        }
     }
 
     // Add event listeners to other income inputs to update total when they change
@@ -1068,29 +1078,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const expensesTotalElement = document.getElementById('expenses-total');
         const totalExpenses = expensesTotalElement ? parseFloat(expensesTotalElement.textContent.replace('Total Expenses: ₱', '')) || 0 : 0;
 
-        // Get GCash value
-        const gcash = parseFloat(document.getElementById('gcash')?.value) || 0;
-
         // Calculate the grand total
-        const grandTotal = totalSales + totalOtherIncome - totalExpenses - gcash - 400;
+        const grandTotal = totalSales + totalOtherIncome - totalExpenses;
 
         // Display the grand total
-        let grandTotalElement = document.getElementById('grand-total');
-        if (!grandTotalElement) {
-            // Create the total display if it doesn't exist
-            grandTotalElement = document.createElement('div');
-            grandTotalElement.id = 'grand-total';
-            grandTotalElement.className = 'form-row';
-            grandTotalElement.style.fontWeight = 'bold';
-            grandTotalElement.style.marginTop = '10px';
-
-            const formContainer = document.querySelector('.form-container');
-            if (formContainer) {
-                formContainer.appendChild(grandTotalElement);
-            }
+        const grandTotalElement = document.getElementById('grand-total');
+        if (grandTotalElement) {
+            grandTotalElement.textContent = `Total: ₱${grandTotal.toFixed(2)}`;
         }
-
-        grandTotalElement.textContent = `Grand Total: ₱${grandTotal.toFixed(2)}`;
     }
 
     // Add event listeners to update the grand total when any relevant value changes
@@ -1116,56 +1111,34 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Call the function to set up event listeners
     addGrandTotalEventListeners();
-
-    // Add event listener for GCash input
-    const gcashInput = document.getElementById('gcash');
-    if (gcashInput) {
-        gcashInput.addEventListener('input', updateGrandTotal);
-    }
-
-    // Add event listener for wages input
-    const wagesInput = document.getElementById('wages');
-    if (wagesInput) {
-        wagesInput.addEventListener('input', updateGrandTotal);
-    }
 });    // Temporary form submission handler
     const temporaryModalSubmit = document.getElementById('temporary-modal-submit');
     if (temporaryModalSubmit) {
         temporaryModalSubmit.addEventListener('click', async function(e) {
             e.preventDefault();
-
+            
             try {
-                console.log("Starting shift summary submission...");
-
-                // Check if summary already exists before submission
-                if (summaryAlreadyExists) {
-                    showWarning('Already Submitted', 'This shift summary has already been completed.');
-                    return;
-                }
-
                 // Collect all form data
                 const formData = {
                     // Total sales from first column
                     total_gross_sales: parseFloat(document.getElementById('total-gross-sales')?.value) || 0,
                     forty_x: parseFloat(document.getElementById('40x')?.value) || 0,
-
+                    
                     // Addons from first column
                     addons: {},
-
+                    
                     // Other income from second column
                     other_income: {},
-
+                    
                     // Expenses from second column
                     expenses: {},
-
+                    
                     // Additional fields
                     wages: parseFloat(document.getElementById('wages')?.value) || 0,
                     gcash: parseFloat(document.getElementById('gcash')?.value) || 0,
                     grand_total: 0 // Will be calculated
                 };
-
-                console.log("Form data collected:", formData);
-
+                
                 // Collect addon data
                 const addonInputs = document.querySelectorAll('#addons-container input[type="number"]');
                 addonInputs.forEach(input => {
@@ -1175,7 +1148,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         formData.addons[addonName] = parseFloat(input.value);
                     }
                 });
-
+                
                 // Collect other income data
                 const otherIncomeInputs = document.querySelectorAll('#other-income-container input[type="number"]');
                 otherIncomeInputs.forEach(input => {
@@ -1185,14 +1158,14 @@ document.addEventListener("DOMContentLoaded", () => {
                         formData.other_income[incomeName] = parseFloat(input.value);
                     }
                 });
-
+                
                 // Collect expenses data
                 const expenseRows = document.querySelectorAll('#expenses-table tbody tr');
                 expenseRows.forEach(row => {
                     const nameInput = row.querySelector('input[placeholder="Name"]');
                     const descInput = row.querySelector('input[placeholder="Description"]');
                     const amountInput = row.querySelector('input[placeholder="Amount"]');
-
+                    
                     if (nameInput && nameInput.value && amountInput && amountInput.value) {
                         formData.expenses[nameInput.value] = {
                             description: descInput?.value || '',
@@ -1200,22 +1173,13 @@ document.addEventListener("DOMContentLoaded", () => {
                         };
                     }
                 });
-
+                
                 // Calculate grand total
                 const totalSales = formData.total_gross_sales + formData.forty_x + Object.values(formData.addons).reduce((sum, val) => sum + val, 0);
                 const totalOtherIncome = Object.values(formData.other_income).reduce((sum, val) => sum + val, 0);
                 const totalExpenses = Object.values(formData.expenses).reduce((sum, expense) => sum + expense.amount, 0);
-                formData.grand_total = totalSales + totalOtherIncome - totalExpenses - formData.gcash - formData.wages;
-
-                console.log("Final form data to submit:", formData);
-
-                // Add confirmation prompt
-                const isConfirmed = window.confirm("Are you sure? Changes cannot be undone.");
-                if (!isConfirmed) {
-                    console.log("Submission cancelled by user");
-                    return;
-                }
-
+                formData.grand_total = totalSales + totalOtherIncome - totalExpenses;
+                
                 // Send data to API
                 const response = await fetch('/api/shift-summary', {
                     method: 'POST',
@@ -1224,122 +1188,24 @@ document.addEventListener("DOMContentLoaded", () => {
                     },
                     body: JSON.stringify(formData)
                 });
-
-                console.log("API response status:", response.status);
-
+                
                 if (response.ok) {
                     const result = await response.json();
-                    showSuccess("Summary Submitted", `Successfully submitted shift summary for ${result.date} (${result.shift} shift)`);
-
+                    alert(`Shift summary submitted successfully!\\nDate: ${result.date}\\nShift: ${result.shift}`);
+                    
                     // Close the modal
-                    if (temporaryModal) {
-                        temporaryModal.style.display = 'none';
-                    }
-
-                    // Hide the button permanently
-                    const btnTemporary = document.getElementById('btn-temporary');
-                    if (btnTemporary) {
-                        btnTemporary.style.display = 'none';
-                    }
-
-                    // Set the flag to prevent future submissions
-                    summaryAlreadyExists = true;
-
+                    temporaryModal.style.display = 'none';
+                    
                     // Optionally refresh the page or clear the form
                     // location.reload();
                 } else {
                     const error = await response.json();
-                    showError("Submission Failed", error.error || "Unknown error");
+                    alert(`Failed to submit shift summary: ${error.error || 'Unknown error'}`);
                 }
-
+                
             } catch (error) {
                 console.error('Error submitting shift summary:', error);
-                showError("Submission Error", "An error occurred while submitting the shift summary. Please try again.");
-                if (temporaryModal) {
-                    temporaryModal.style.display = 'none';
-                }
+                alert('An error occurred while submitting the shift summary. Please try again.');
             }
-        });
-    }
-    // ====================================
-    // SUMMARY FORM LOGIC ENHANCEMENTS
-    // ====================================
-    
-    let summaryAlreadyExists = false;
-
-    // Check if shift summary already exists
-    async function checkShiftSummaryExists() {
-        try {
-            console.log("Checking if shift summary already exists...");
-            const response = await fetch('/api/shift-summary-exists');
-            console.log("Shift summary API response:", response);
-            if (response.ok) {
-                const result = await response.json();
-                console.log("Shift summary check result:", result);
-                summaryAlreadyExists = result.exists;
-
-                if (summaryAlreadyExists) {
-                    console.log("Shift summary already exists, hiding button");
-                    // Hide temporary button if summary already exists
-                    const btnTemporary = document.getElementById('btn-temporary');
-                    if (btnTemporary) {
-                        btnTemporary.style.display = 'none';
-                    }
-
-                    // Show info notification
-                    showInfo('Summary Complete', `Shift summary for ${result.date} (${result.shift} shift) has already been completed.`);
-                } else {
-                    console.log("No existing shift summary found");
-                }
-            } else {
-                console.log("No existing shift summary (API returned non-ok status)");
-            }
-        } catch (error) {
-            console.error('Error checking shift summary:', error);
-        }
-    }
-
-    // Enhanced updateShiftTimer function to check summary status
-    const originalUpdateShiftTimer = window.updateShiftTimer;
-    window.updateShiftTimer = function() {
-        // Call original function
-        if (originalUpdateShiftTimer) {
-            originalUpdateShiftTimer();
-        }
-
-        // Check summary status when timer updates
-        const userRoleElement = document.querySelector(".user-role");
-        if (userRoleElement && userRoleElement.textContent === 'Incharge') {
-            checkShiftSummaryExists();
-        }
-    };
-
-    // Enhanced temporary modal submit to hide button after submission
-    const originalTemporarySubmit = document.getElementById('temporary-modal-submit');
-    if (originalTemporarySubmit) {
-        originalTemporarySubmit.addEventListener('click', async function(e) {
-            // Prevent double submission
-            if (summaryAlreadyExists) {
-                showWarning('Already Submitted', 'This shift summary has already been completed.');
-                return;
-            }
-
-            // Set loading state
-            setButtonLoading(this, true);
-
-            // After successful submission, hide the temporary button permanently
-            setTimeout(() => {
-                const btnTemporary = document.getElementById('btn-temporary');
-                if (btnTemporary) {
-                    btnTemporary.style.display = 'none';
-                }
-
-                // Hide the modal
-                if (document.getElementById('temporary-modal')) {
-                    document.getElementById('temporary-modal').style.display = 'none';
-                }
-
-                summaryAlreadyExists = true;
-            }, 1000);
         });
     }

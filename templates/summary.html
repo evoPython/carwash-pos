@@ -5,7 +5,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Summary Dashboard</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tables.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}" />
     <link rel="stylesheet" href="{{ url_for('static', filename='js/tabulator/tabulator.min.css') }}" />
     <style>
         .calendar-container {
@@ -56,6 +59,38 @@
         .records-table {
             margin: 2rem 0;
         }
+        
+        .shift-summary-section {
+            margin-top: 2rem;
+            border-top: 2px solid #007bff;
+            padding-top: 1rem;
+        }
+        
+        .summary-columns {
+            display: flex;
+            gap: 2rem;
+            margin-top: 1rem;
+        }
+        
+        .summary-column {
+            flex: 1;
+            border: 1px solid #ddd;
+            padding: 1rem;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        
+        .summary-item {
+            margin: 0.5rem 0;
+            padding: 0.25rem 0;
+        }
+        
+        .summary-column h4 {
+            color: #007bff;
+            border-bottom: 1px solid #007bff;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
     </style>
 </head>
 
@@ -98,6 +133,12 @@
         <div class="records-table">
             <h2>Records for <span id="selected-date"></span> <span id="selected-shift"></span></h2>
             <div id="records-table-container"></div>
+            
+            <!-- Shift Summary Section -->
+            <div class="shift-summary-section" id="shift-summary-section" style="display: none;">
+                <h3>Shift Summary for <span id="summary-date-shift"></span></h3>
+                <div id="shift-summary-container"></div>
+            </div>
         </div>
     </main>
 
@@ -154,6 +195,9 @@
                         recordsContainer.innerHTML = '';
                         selectedShift = null;
                         selectedShiftSpan.textContent = '';
+                        
+                        // Hide shift summary section when new date is selected
+                        document.getElementById('shift-summary-section').style.display = 'none';
                     });
 
                     currentRow.appendChild(cell);
@@ -173,6 +217,9 @@
 
                 // Fetch records from API
                 fetchRecords(selectedDate, shift);
+                
+                // Also fetch and display shift summary
+                fetchAndDisplayShiftSummary(selectedDate, shift);
             }
 
             // Fetch records from API
@@ -260,6 +307,89 @@
 
                 recordsContainer.innerHTML = '';
                 recordsContainer.appendChild(table);
+            }
+
+            // Fetch and display shift summary
+            function fetchAndDisplayShiftSummary(date, shift) {
+                fetch(`/api/shift-summary?date=${encodeURIComponent(date)}&shift=${encodeURIComponent(shift)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const shiftSummarySection = document.getElementById('shift-summary-section');
+                        const summaryDateShift = document.getElementById('summary-date-shift');
+                        const summaryContainer = document.getElementById('shift-summary-container');
+                        
+                        if (Array.isArray(data) && data.length > 0) {
+                            // Display the summary data
+                            const summary = data[0]; // Should only be one summary per date/shift
+                            
+                            summaryDateShift.textContent = `${date} - ${shift === 'AM' ? '(5:00 AM - 5:00 PM)' : '(5:00 PM - 5:00 AM)'} - ${summary.carwasher_name}`;
+                            
+                            // Create the two-column layout similar to temporary form
+                            const summaryHTML = `
+                                <div class="summary-columns">
+                                    <div class="summary-column">
+                                        <h4>SALES</h4>
+                                        <div class="summary-item">
+                                            <strong>Total Gross Sales:</strong> ₱${summary.total_gross_sales.toFixed(2)}
+                                        </div>
+                                        <div class="summary-item">
+                                            <strong>40x:</strong> ₱${summary.forty_x.toFixed(2)}
+                                        </div>
+                                        
+                                        <h4 style="margin-top: 1rem;">ADDONS</h4>
+                                        ${Object.entries(summary.addons).map(([name, amount]) => 
+                                            `<div class="summary-item"><strong>${name}:</strong> ₱${amount.toFixed(2)}</div>`
+                                        ).join('')}
+                                        
+                                        <div class="summary-item" style="margin-top: 1rem; font-weight: bold; border-top: 1px solid #ccc; padding-top: 0.5rem;">
+                                            <strong>Total Sales: ₱${(summary.total_gross_sales + summary.forty_x + Object.values(summary.addons).reduce((sum, val) => sum + val, 0)).toFixed(2)}</strong>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="summary-column">
+                                        <h4>OTHER INCOME</h4>
+                                        ${Object.entries(summary.other_income).map(([name, amount]) => 
+                                            `<div class="summary-item"><strong>${name}:</strong> ₱${amount.toFixed(2)}</div>`
+                                        ).join('')}
+                                        ${Object.keys(summary.other_income).length === 0 ? '<div class="summary-item">No other income recorded</div>' : ''}
+                                        
+                                        <h4 style="margin-top: 1rem;">EXPENSES</h4>
+                                        ${Object.entries(summary.expenses).map(([name, expense]) => 
+                                            `<div class="summary-item">
+                                                <strong>${name}:</strong> ${expense.description} - ₱${expense.amount.toFixed(2)}
+                                             </div>`
+                                        ).join('')}
+                                        ${Object.keys(summary.expenses).length === 0 ? '<div class="summary-item">No expenses recorded</div>' : ''}
+                                        
+                                        <div class="summary-item" style="margin-top: 1rem;">
+                                            <strong>Wages:</strong> ₱${summary.wages.toFixed(2)}
+                                        </div>
+                                        <div class="summary-item">
+                                            <strong>GCash:</strong> ₱${(summary.gcash || 0).toFixed(2)}
+                                        </div>
+                                        
+                                        <div class="summary-item" style="margin-top: 1rem; font-weight: bold; font-size: 1.2rem; border-top: 2px solid #007bff; padding-top: 0.5rem; color: #007bff;">
+                                            <strong>GRAND TOTAL: ₱${summary.grand_total.toFixed(2)}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            
+                            summaryContainer.innerHTML = summaryHTML;
+                            shiftSummarySection.style.display = 'block';
+                        } else {
+                            summaryContainer.innerHTML = '<p style="color: #666; font-style: italic;">No shift summary found for this date and shift.</p>';
+                            summaryDateShift.textContent = `${date} - ${shift === 'AM' ? '(5:00 AM - 5:00 PM)' : '(5:00 PM - 5:00 AM)'}`;
+                            shiftSummarySection.style.display = 'block';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching shift summary:', error);
+                        const shiftSummarySection = document.getElementById('shift-summary-section');
+                        const summaryContainer = document.getElementById('shift-summary-container');
+                        summaryContainer.innerHTML = '<p style="color: red;">Error loading shift summary. Please try again.</p>';
+                        shiftSummarySection.style.display = 'block';
+                    });
             }
 
             // Event listeners for shift buttons

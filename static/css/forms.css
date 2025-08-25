@@ -1,0 +1,434 @@
+/*--------------------------------------------------
+  Auth & Login
+--------------------------------------------------*/
+.auth-body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    background: var(--color-bg);
+    animation: fadeIn 0.5s ease-out;
+}
+
+.auth-container {
+    background: var(--color-surface);
+    padding: 2rem;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow-lg);
+    width: 100%;
+    max-width: 400px;
+    animation: fadeInUp 0.4s ease-out;
+}
+
+.auth-header h1 {
+    font-size: 1.75rem;
+    color: var(--color-primary);
+    margin-bottom: 0.5rem;
+}
+
+.auth-header h2 {
+    font-size: 1.25rem;
+    color: var(--color-secondary);
+    margin-top: 0.5rem;
+}
+
+.auth-form {
+    margin-top: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing);
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.form-group-remember {
+    display: flex;
+    flex-direction: row;
+    gap: 0.25rem;
+    text-decoration: none;
+    align-items: center;
+}
+
+.form-group input[type="text"],
+.form-group input[type="password"] {
+    padding: 0.5rem;
+    border: 1px solid #d1d5db;
+    border-radius: var(--border-radius);
+    background: #fff;
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.form-group input:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 2px var(--color-focus);
+    outline: none;
+}
+
+.auth-btn {
+    width: 100%;
+    margin-top: 1rem;
+}
+
+.flash-messages {
+    margin-bottom: var(--spacing);
+}
+
+.flash-message {
+    padding: 0.75rem;
+    border-radius: var(--border-radius);
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.flash-success {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.flash-error {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* Fix remember me checkbox */
+.form-group.checkbox-container {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Temporary Form Styles */
+.form-column {
+    flex: 1;
+    min-width: 300px;
+    margin-right: 1rem;
+}
+
+.form-column:last-child {
+    margin-right: 0;
+}
+
+.vertical-separator {
+    width: 2px;
+    background: var(--color-accent);
+    height: 100%;
+    margin: 0 1rem;
+}
+
+.sales-section,
+.other-income-section,
+.expenses-section {
+    margin-bottom: 1.5rem;
+}
+
+.sales-item,
+.income-item,
+.expense-item {
+    margin-bottom: 0.75rem;
+}
+
+.sales-item label,
+.income-item label,
+.expense-item label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+    color: var(--color-primary);
+}
+
+.sales-item input,
+.income-item input,
+.expense-item input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #d1d5db;
+    border-radius: var(--border-radius);
+    background: #fff;
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.sales-item input:focus,
+.income-item input:focus,
+.expense-item input:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 2px var(--color-focus);
+    outline: none;
+}
+
+.addons-section {
+    margin: 1rem 0;
+}
+
+.addon-item {
+    margin-bottom: 0.5rem;
+}
+
+.expense-table {
+    margin-top: 1rem;
+}
+
+#expenses-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#expenses-table th,
+#expenses-table td {
+    padding: 0.5rem;
+    border: 1px solid #d1d5db;
+    text-align: left;
+}
+
+#expenses-table th {
+    background: #f3f4f6;
+    font-weight: 600;
+    color: var(--color-primary);
+}
+
+.btn-secondary {
+    background: var(--color-secondary);
+    color: #fff;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: background var(--transition), transform var(--transition);
+}
+
+.btn-secondary:hover {
+    background: #374151;
+    transform: translateY(-1px);
+}
+
+/* --- Top-level two-column layout only --- */
+#temporary-form>.form-row {
+    display: flex;
+    gap: 1rem;
+    align-items: stretch;
+    /* so separator fills column height */
+    flex-wrap: nowrap;
+    box-sizing: border-box;
+}
+
+/* columns */
+#temporary-form .form-column {
+    flex: 1 1 0;
+    min-width: 280px;
+    /* stack on small screens */
+    display: flex;
+    flex-direction: column;
+    /* keep column content vertical */
+    gap: 1rem;
+}
+
+/* vertical divider */
+#temporary-form .vertical-separator {
+    width: 1px;
+    background: #e0e0e0;
+    align-self: stretch;
+    /* full height of flex container */
+    margin: 0.25rem 0;
+}
+
+/* keep inner rows inside each column stacking vertically */
+#temporary-form .form-column>.form-row {
+    display: block;
+    /* prevents nested rows from becoming horizontal flex rows */
+}
+
+/* helper for small sets of inline inputs (like the Total / 40x pair) */
+#temporary-form .inline-row {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+#temporary-form .inline-row label {
+    flex: 1 1 140px;
+    min-width: 120px;
+}
+
+/* Addon items styling */
+#temporary-form .form-row .form-row {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.5rem;
+}
+
+#temporary-form .form-row .form-row label {
+    flex: 1 1 140px;
+    min-width: 120px;
+    font-weight: 500;
+    color: var(--color-primary);
+}
+
+#temporary-form .form-row .form-row input {
+    flex: 1 1 100px;
+    min-width: 80px;
+    padding: 0.4rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+#temporary-form .form-row .form-row input:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 2px var(--color-focus);
+    outline: none;
+}
+
+/* form controls */
+#temporary-form label {
+    display: block;
+    font-size: 0.95rem;
+    color: var(--color-primary);
+    margin-bottom: 0.25rem;
+}
+
+#temporary-form input,
+#temporary-form select,
+#temporary-form textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.4rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff;
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+#temporary-form input:focus,
+#temporary-form select:focus,
+#temporary-form textarea:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 2px var(--color-focus);
+    outline: none;
+}
+
+/* responsive behavior */
+@media (max-width: 700px) {
+    #temporary-form>.form-row {
+        flex-direction: column;
+    }
+
+    #temporary-form .vertical-separator {
+        display: none;
+    }
+}
+
+/* Other Income Dropdown Styles */
+#other-income-dropdown {
+    position: absolute;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    z-index: 1000;
+    min-width: 150px;
+}
+
+.dropdown-item {
+    display: block;
+    width: 100%;
+    padding: 0.5rem 1rem;
+    background: none;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition);
+}
+
+.dropdown-item:hover {
+    background: var(--color-focus);
+    color: var(--color-primary);
+}
+
+/* Other Income Item Styles */
+.other-income-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.other-income-item label {
+    flex: 1;
+    font-weight: 500;
+    min-width: 100px;
+    color: var(--color-primary);
+}
+
+.other-income-item input {
+    width: 120px;
+    padding: 0.5rem;
+    border: 1px solid #d1d5db;
+    border-radius: var(--border-radius);
+    text-align: right;
+    background: #fff;
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.other-income-item input:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 2px var(--color-focus);
+    outline: none;
+}
+
+/*--------------------------------------------------
+  Animations
+--------------------------------------------------*/
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/*--------------------------------------------------
+  Utility Classes
+--------------------------------------------------*/
+.fade-in {
+    animation: fadeIn 0.3s ease-out forwards;
+}
+
+.fade-in-up {
+    animation: fadeInUp 0.4s ease-out forwards;
+}
+
+.pulse {
+    animation: pulse 2s infinite;
+}

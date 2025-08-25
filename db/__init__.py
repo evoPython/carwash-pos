@@ -405,3 +405,148 @@ def change_user_password(user_id, new_password):
         c.execute("UPDATE users SET password_hash = ? WHERE id = ?", (password_hash, user_id))
         conn.commit()
         return c.rowcount > 0
+# ============================================
+# SHIFT SUMMARY FUNCTIONS
+# ============================================
+
+def add_shift_summary(summary_dict):
+    """Insert a new shift summary."""
+    from datetime import datetime
+    import json
+    
+    current_time = datetime.now()
+    
+    with get_db() as conn:
+        c = conn.cursor()
+        
+        # Convert dictionaries to JSON strings
+        addons_json = json.dumps(summary_dict.get('addons', {}))
+        other_income_json = json.dumps(summary_dict.get('other_income', {}))
+        expenses_json = json.dumps(summary_dict.get('expenses', {}))
+        
+        c.execute('''
+            INSERT OR REPLACE INTO shift_summaries (
+                date, shift, carwasher_name, total_gross_sales, forty_x,
+                addons, other_income, expenses, wages, gcash, grand_total,
+                created_at, created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            summary_dict.get('date', ''),
+            summary_dict.get('shift', ''),
+            summary_dict.get('carwasher_name', ''),
+            summary_dict.get('total_gross_sales', 0),
+            summary_dict.get('forty_x', 0),
+            addons_json,
+            other_income_json,
+            expenses_json,
+            summary_dict.get('wages', 0),
+            summary_dict.get('gcash', 0),
+            summary_dict.get('grand_total', 0),
+            current_time.isoformat(),
+            summary_dict.get('created_by', 1)
+        ))
+        conn.commit()
+        return c.lastrowid
+
+def get_shift_summary(date, shift, carwasher_name=None):
+    """Get shift summary for a specific date and shift."""
+    import json
+    
+    with get_db() as conn:
+        c = conn.cursor()
+        
+        if carwasher_name:
+            c.execute('''
+                SELECT id, date, shift, carwasher_name, total_gross_sales, forty_x,
+                       addons, other_income, expenses, wages, gcash, grand_total,
+                       created_at, created_by
+                FROM shift_summaries
+                WHERE date = ? AND shift = ? AND carwasher_name = ?
+            ''', (date, shift, carwasher_name))
+        else:
+            c.execute('''
+                SELECT id, date, shift, carwasher_name, total_gross_sales, forty_x,
+                       addons, other_income, expenses, wages, gcash, grand_total,
+                       created_at, created_by
+                FROM shift_summaries
+                WHERE date = ? AND shift = ?
+            ''', (date, shift))
+        
+        rows = c.fetchall()
+        summaries = []
+        
+        for row in rows:
+            summary = {
+                'id': row[0],
+                'date': row[1],
+                'shift': row[2],
+                'carwasher_name': row[3],
+                'total_gross_sales': row[4],
+                'forty_x': row[5],
+                'addons': json.loads(row[6]) if row[6] else {},
+                'other_income': json.loads(row[7]) if row[7] else {},
+                'expenses': json.loads(row[8]) if row[8] else {},
+                'wages': row[9],
+                'gcash': row[10],
+                'grand_total': row[11],
+                'created_at': row[12],
+                'created_by': row[13]
+            }
+            summaries.append(summary)
+        
+        return summaries[0] if len(summaries) == 1 and carwasher_name else summaries
+
+def get_all_shift_summaries(date=None, shift=None):
+    """Get all shift summaries, optionally filtered by date and/or shift."""
+    import json
+    
+    with get_db() as conn:
+        c = conn.cursor()
+        
+        query = '''
+            SELECT id, date, shift, carwasher_name, total_gross_sales, forty_x,
+                   addons, other_income, expenses, wages, gcash, grand_total,
+                   created_at, created_by
+            FROM shift_summaries
+        '''
+        
+        params = []
+        conditions = []
+        
+        if date:
+            conditions.append('date = ?')
+            params.append(date)
+        
+        if shift:
+            conditions.append('shift = ?')
+            params.append(shift)
+        
+        if conditions:
+            query += ' WHERE ' + ' AND '.join(conditions)
+        
+        query += ' ORDER BY date DESC, shift ASC, carwasher_name ASC'
+        
+        c.execute(query, params)
+        rows = c.fetchall()
+        
+        summaries = []
+        for row in rows:
+            summary = {
+                'id': row[0],
+                'date': row[1],
+                'shift': row[2],
+                'carwasher_name': row[3],
+                'total_gross_sales': row[4],
+                'forty_x': row[5],
+                'addons': json.loads(row[6]) if row[6] else {},
+                'other_income': json.loads(row[7]) if row[7] else {},
+                'expenses': json.loads(row[8]) if row[8] else {},
+                'wages': row[9],
+                'gcash': row[10],
+                'grand_total': row[11],
+                'created_at': row[12],
+                'created_by': row[13]
+            }
+            summaries.append(summary)
+        
+        return summaries

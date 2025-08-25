@@ -5,7 +5,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Carwash POS Dashboard</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tables.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modals.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/notifications.css') }}" />
     <link rel="stylesheet" href="{{ url_for('static', filename='js/tabulator/tabulator.min.css') }}" />
 </head>
 
@@ -18,6 +23,9 @@
             {% if current_user.has_permission(80) %}
             <a href="{{ url_for('summary') }}" class="btn">Summary</a>
             <a href="{{ url_for('users') }}" class="btn">Manage Users</a>
+            {% endif %}
+            {% if current_user.role == 'Developer' %}
+            <a href="{{ url_for('database') }}" class="btn">Database</a>
             {% endif %}
             <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
         </div>
@@ -260,7 +268,7 @@
                         <div class="form-row">
                             <label>
                                 Total
-                                <!-- smth -->
+                                <span id="grand-total">₱0.00</span>
                             </label>
                         </div>
                     </div>
@@ -275,6 +283,8 @@
 
     <script src="{{ url_for('static', filename='js/chart.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/tabulator/tabulator.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/time_override.js') }}"></script>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 
