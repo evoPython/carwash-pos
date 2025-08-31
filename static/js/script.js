@@ -308,7 +308,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Temporary Button Modal
     if (btnTemporary) {
         btnTemporary.onclick = () => {
-            temporaryModal.style.display = "flex";
+            temporaryModal.style.display = "inline-block";
             // Center the modal content
             const tempModalContent = temporaryModal.querySelector('.modal-content');
             if (tempModalContent) {
@@ -785,15 +785,15 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (btnTemporary) {
                         // Check if shift summary exists and override time-based logic
                         if (summaryAlreadyExists) {
-                            btnTemporary.style.display = 'none';
+                            btnTemporary.style.display = 'inline-block';
                         } else if (showTemporaryButton) {
                             btnTemporary.style.display = 'inline-block';
                         } else {
-                            btnTemporary.style.display = 'none';
+                            btnTemporary.style.display = 'inline-block';
                         }
                     }
                 } else if (btnTemporary) {
-                    btnTemporary.style.display = 'none';
+                    btnTemporary.style.display = 'inline-block';
                 }
 
                 // Load current shift data

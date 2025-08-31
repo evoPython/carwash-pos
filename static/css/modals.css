@@ -1,137 +1,152 @@
 /*--------------------------------------------------
-  Modal
+  Modal (Modern Glassmorphic)
 --------------------------------------------------*/
 .modal {
     position: fixed;
-    top: 0;
-    left: 0;
+    inset: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(15, 23, 42, 0.55);
+    /* dark slate overlay */
+    backdrop-filter: blur(6px);
     display: none;
     align-items: center;
     justify-content: center;
     z-index: 200;
-    animation: modalFadeIn 0.3s ease-out;
+    animation: modalFadeIn 0.35s ease forwards;
 }
 
 .modal-content {
-    background: var(--color-surface);
-    padding: 2rem;
-    border-radius: var(--border-radius);
-    max-width: 600px;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(14px);
+    padding: 2rem 2.25rem;
+    border-radius: 1rem;
+    max-width: 640px;
     width: 95%;
     position: relative;
-    box-shadow: var(--box-shadow-lg);
+    border: 1px solid rgba(226, 232, 240, 0.6);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.15);
     max-height: 90vh;
     overflow-y: auto;
-    animation: modalContentFadeIn 0.3s ease-out;
-    margin: 0 auto;
+    animation: modalContentPop 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* ✅ Temporary modal: auto-sizing width */
+#temporary-modal .modal-content {
+    width: fit-content;
+    /* shrink/grow to contents */
+    max-width: 90vw;
+    /* responsive cap */
+    min-width: 280px;
+    /* optional baseline */
+    margin: 0 auto;
+    /* keep centered */
+}
+
+/* Subtle entry animations */
 @keyframes modalFadeIn {
     from {
         opacity: 0;
     }
+
     to {
         opacity: 1;
     }
 }
 
-@keyframes modalContentFadeIn {
+@keyframes modalContentPop {
     from {
         opacity: 0;
-        transform: translateY(20px) scale(0.98);
+        transform: translateY(40px) scale(0.95);
     }
+
     to {
         opacity: 1;
         transform: translateY(0) scale(1);
     }
 }
 
+/*--------------------------------------------------
+  Close Button
+--------------------------------------------------*/
 .modal-close {
     position: absolute;
-    top: 1rem;
-    right: 1rem;
-    font-size: 1.5rem;
+    top: 0.75rem;
+    right: 0.75rem;
+    font-size: 1.25rem;
     cursor: pointer;
     color: var(--color-muted);
-    background: none;
+    background: rgba(255, 255, 255, 0.6);
     border: none;
     padding: 0.5rem;
     border-radius: 50%;
-    transition: all var(--transition);
+    line-height: 1;
+    transition: all 0.25s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 .modal-close:hover {
-    background: var(--color-focus);
-    color: var(--color-danger);
-    transform: rotate(90deg);
+    background: var(--color-accent);
+    color: #fff;
+    transform: rotate(90deg) scale(1.1);
+    box-shadow: 0 4px 10px rgba(99, 102, 241, 0.35);
 }
 
-/* ===== Modal Base ===== */
-#temporary-modal .modal-content {
-    max-width: 900px;
-    /* wider for comfortable 2-column layout */
-    width: 95%;
-    padding: 1.5rem 2rem;
-    box-sizing: border-box;
-    background: #fff;
-    border-radius: var(--border-radius, 8px);
-    overflow-y: auto;
-    max-height: 90vh;
-}
-
-/* ===== Form Row Styling ===== */
+/*--------------------------------------------------
+  Form Layout
+--------------------------------------------------*/
 .form-row {
     display: flex;
-    gap: var(--spacing, 1rem);
+    gap: 1.25rem;
     flex-wrap: wrap;
-    margin-bottom: var(--spacing, 1rem);
+    margin-bottom: 1.25rem;
 }
 
-/* Label + Field */
 .form-row label {
     flex: 1 1 250px;
     display: flex;
     flex-direction: column;
     font-weight: 500;
-    color: #374151;
+    color: #1e293b;
+    font-size: 0.95rem;
 }
 
 /* Inputs & Selects */
-.form-row input[type="text"],
-.form-row input[type="number"],
-.form-row input[type="date"],
-.form-row input[type="month"],
-.form-row select {
-    margin-top: 0.25rem;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid #d1d5db;
-    border-radius: var(--border-radius, 6px);
+.form-row input,
+.form-row select,
+.form-row textarea {
+    margin-top: 0.35rem;
+    padding: 0.65rem 0.9rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
     background: #fff;
     font-size: 0.95rem;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    transition: border-color 0.25s, box-shadow 0.25s, transform 0.15s;
 }
 
 .form-row input:focus,
-.form-row select:focus {
-    border-color: var(--color-accent, #3b82f6);
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+.form-row select:focus,
+.form-row textarea:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.25);
+    transform: translateY(-1px);
     outline: none;
 }
 
-/* ===== Headings ===== */
+/*--------------------------------------------------
+  Headings
+--------------------------------------------------*/
 #temporary-form h3 {
-    margin: 0.75rem 0 0.5rem;
-    font-size: 1rem;
+    margin: 1rem 0 0.75rem;
+    font-size: 1.15rem;
     font-weight: 600;
-    color: var(--color-accent, #3b82f6);
+    color: var(--color-accent);
     border-bottom: 1px solid #e5e7eb;
-    padding-bottom: 0.25rem;
+    padding-bottom: 0.35rem;
+    letter-spacing: -0.01em;
 }
 
-/* ===== Two-Column Layout ===== */
+/* Two-Column Layout */
 #temporary-form .form-row:first-of-type {
     display: flex;
     align-items: flex-start;
@@ -148,57 +163,41 @@
 /* Vertical Separator */
 #temporary-form .vertical-separator {
     width: 2px;
-    background: var(--color-accent, #3b82f6);
-    margin: 0;
+    background: var(--color-accent);
     align-self: stretch;
     border-radius: 2px;
 }
 
-/* ===== Buttons ===== */
+/*--------------------------------------------------
+  Buttons
+--------------------------------------------------*/
 #temporary-modal-submit {
-    padding: 0.6rem 1.5rem;
+    padding: 0.75rem 1.5rem;
     font-size: 0.95rem;
     font-weight: 600;
-    background: var(--color-accent, #3b82f6);
+    background: var(--gradient-primary);
     color: #fff;
     border: none;
-    border-radius: var(--border-radius, 6px);
+    border-radius: 0.65rem;
     cursor: pointer;
-    transition: background 0.2s ease-in-out, transform 0.2s ease-in-out;
+    transition: all 0.25s ease;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
 }
 
 #temporary-modal-submit:hover {
-    background: #2563eb;
-    transform: translateY(-1px);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(79, 70, 229, 0.4);
 }
 
-/* ===== Responsive ===== */
-@media (max-width: 900px) {
-    #temporary-form .form-row:first-of-type {
-        flex-direction: column;
-    }
-
-    #temporary-form .vertical-separator {
-        display: none;
-    }
-}
-
+/*--------------------------------------------------
+  Chips & Options
+--------------------------------------------------*/
 .base-service-radio,
 .addon-checkboxes {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: 0.6rem;
     margin-top: 0.5rem;
-}
-
-.base-service-radio .radio-label,
-.addon-checkboxes .checkbox-label {
-    margin: 0;
-}
-
-.base-service-radio label,
-.addon-checkboxes label {
-    margin: 0;
 }
 
 .base-service-radio label,
@@ -208,28 +207,33 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0.5rem 0.75rem;
+    padding: 0.55rem 1rem;
     border-radius: 9999px;
-    border: 1px solid #d1d5db;
-    background: #f9fafb;
-    transition: background var(--transition), color var(--transition), transform var(--transition);
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    font-size: 0.9rem;
+    transition: all 0.25s ease;
 }
 
 .base-service-radio label:hover,
 .addon-checkboxes label:hover,
 .form-row .chip:hover {
-    transform: translateY(-1px);
+    transform: translateY(-2px);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
 }
 
 input[type="radio"]:checked+label,
 input[type="checkbox"]:checked+label,
 .chip input:checked+.chip {
-    background: var(--color-accent);
+    background: var(--gradient-primary);
     color: #fff;
-    border-color: var(--color-accent);
+    border-color: transparent;
+    box-shadow: 0 3px 10px rgba(79, 70, 229, 0.35);
 }
 
-/* Toggle (W/Vac Yes/No style) */
+/*--------------------------------------------------
+  Toggle Switch
+--------------------------------------------------*/
 .toggle-container {
     display: flex;
     gap: 1rem;
@@ -237,10 +241,9 @@ input[type="checkbox"]:checked+label,
 }
 
 .toggle-switch {
-    display: inline-block;
     position: relative;
-    width: 46px;
-    height: 24px;
+    width: 48px;
+    height: 26px;
 }
 
 .toggle-switch input {
@@ -249,30 +252,28 @@ input[type="checkbox"]:checked+label,
 
 .toggle-slider {
     position: absolute;
+    inset: 0;
     cursor: pointer;
-    background-color: #ccc;
-    border-radius: 999px;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    transition: 0.4s;
+    background: #cbd5e1;
+    border-radius: 9999px;
+    transition: background 0.4s;
 }
 
 .toggle-slider::before {
     content: "";
     position: absolute;
-    height: 18px;
-    width: 18px;
+    height: 20px;
+    width: 20px;
     left: 3px;
     bottom: 3px;
-    background-color: white;
+    background: white;
     border-radius: 50%;
-    transition: 0.4s;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
 }
 
 .toggle-switch input:checked+.toggle-slider {
-    background-color: var(--color-accent);
+    background: var(--color-accent);
 }
 
 .toggle-switch input:checked+.toggle-slider::before {
@@ -280,53 +281,14 @@ input[type="checkbox"]:checked+label,
 }
 
 /*--------------------------------------------------
-  Animations
+  Responsive
 --------------------------------------------------*/
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
+@media (max-width: 900px) {
+    #temporary-form .form-row:first-of-type {
+        flex-direction: column;
     }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
 
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
+    #temporary-form .vertical-separator {
+        display: none;
     }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes pulse {
-    0% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(1.05);
-    }
-    100% {
-        transform: scale(1);
-    }
-}
-
-/*--------------------------------------------------
-  Utility Classes
---------------------------------------------------*/
-.fade-in {
-    animation: fadeIn 0.3s ease-out forwards;
-}
-
-.fade-in-up {
-    animation: fadeInUp 0.4s ease-out forwards;
-}
-
-.pulse {
-    animation: pulse 2s infinite;
 }
