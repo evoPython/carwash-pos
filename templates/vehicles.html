@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Vehicles - Carwash POS{% endblock %}
+
+{% block content %}
+<div class="dashboard-header mb-24">
+    <h1>Vehicle Management</h1>
+    <p>Manage vehicle types, services, and pricing</p>
+</div>
+
+<div class="grid grid-cols-1">
+    <div class="card">
+        <div class="card-header">
+            <div class="flex justify-between items-center">
+                <h2>Vehicle Types</h2>
+                <button id="addVehicleBtn" class="btn btn-primary">+ Add Vehicle Type</button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div id="vehiclesList"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Vehicle Modal -->
+<div id="vehicleModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modalTitle">Add Vehicle Type</h3>
+            <span class="close" onclick="closeModal('vehicleModal')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="vehicleForm">
+                <input type="hidden" id="vehicleId" name="vehicleId">
+
+                <div class="form-group">
+                    <label for="vehicleName" class="form-label">Vehicle Name</label>
+                    <input type="text" id="vehicleName" name="vehicleName" class="form-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Base Services</label>
+                    <div id="baseServicesList">
+                        <div class="service-item">
+                            <input type="text" placeholder="Service name" class="form-input service-name" required>
+                            <input type="number" placeholder="Price" class="form-input service-price" required>
+                            <label>
+                                <input type="checkbox" class="service-vac"> With Vacuum
+                            </label>
+                            <button type="button" class="btn btn-error btn-small"
+                                onclick="removeServiceItem(this)">Remove</button>
+                        </div>
+                    </div>
+                    <button type="button" id="addBaseServiceBtn" class="btn btn-secondary btn-small">+ Add Base
+                        Service</button>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Addons</label>
+                    <div id="addonsList">
+                        <div class="addon-item">
+                            <input type="text" placeholder="Addon name" class="form-input addon-name" required>
+                            <input type="number" placeholder="Price" class="form-input addon-price" required>
+                            <button type="button" class="btn btn-error btn-small"
+                                onclick="removeAddonItem(this)">Remove</button>
+                        </div>
+                    </div>
+                    <button type="button" id="addAddonBtn" class="btn btn-secondary btn-small">+ Add Addon</button>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('vehicleModal')">Cancel</button>
+            <button type="submit" form="vehicleForm" class="btn btn-primary">Save</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/vehicles.js') }}"></script>
+{% endblock %}

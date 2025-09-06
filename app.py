@@ -1,862 +1,792 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
-from flask_login import login_user, logout_user, login_required, current_user
-from config import Config
-from db import (init_db, add_order, start_sync_thread, get_db,
-                get_user_by_username, create_user, get_all_users,
-                get_user_by_id, update_user_role, activate_user,
-                deactivate_user, change_user_password, update_user_shift,
-                add_shift_summary, get_shift_summary, get_all_shift_summaries)
-from db.models import Order, User, Role
-from auth import (init_auth, authenticate_user, require_login,
-                  require_admin, require_developer, get_redirect_target)
-import pytz
-from datetime import datetime, time, timedelta
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+import sqlite3
+from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime, timedelta, time
+import json
+import os
+from functools import wraps
 
-def create_app():
-    app = Flask(__name__, static_folder="static", template_folder="templates")
-    app.config.from_object(Config)
+app = Flask(__name__)
+app.secret_key = 'your-secret-key-here'
+
+# Flask-Login setup
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
+# SQLite DB path
+DB_PATH = "carwash_pos.db"
+
+def get_db_connection():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+class User(UserMixin):
+    def __init__(self, id, username, full_name, role, shift=None):
+        self.id = id
+        self.username = username
+        self.full_name = full_name
+        self.role = role
+        self.shift = shift
+
+@login_manager.user_loader
+def load_user(user_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+    user_data = cursor.fetchone()
+    conn.close()
     
-    # Configure session settings for better persistence
-    app.permanent_session_lifetime = app.config['PERMANENT_SESSION_LIFETIME']
+    if user_data:
+        return User(
+            id=user_data['id'],
+            username=user_data['username'],
+            full_name=user_data['full_name'],
+            role=user_data['role'],
+            shift=user_data['shift']
+        )
+    return None
 
-    # Initialize authentication
-    init_auth(app)
-
-    init_db()
-    if Config.SYNC_ENABLED:
-        start_sync_thread()
-
-    # ============================================
-    # AUTHENTICATION ROUTES
-    # ============================================
-    
-    @app.route("/login", methods=["GET", "POST"])
-    def login():
-        """User login route."""
-        if current_user.is_authenticated:
-            return redirect(url_for('index'))
-
-        if request.method == "POST":
-            username = request.form.get('username')
-            password = request.form.get('password')
-            remember_me = bool(request.form.get('remember_me'))
-
-            if not username or not password:
-                flash('Please enter both username and password.', 'error')
-                return render_template('login.html')
-
-            user = authenticate_user(username, password)
-            if user:
-                login_user(user, remember=remember_me)
-                if remember_me:
-                    from flask import session
-                    session.permanent = True
-
-                # Redirect directly to dashboard (no welcome message)
-                next_page = get_redirect_target()
-                if next_page and 'login' not in next_page and 'register' not in next_page:
-                    return redirect(next_page)
-                return redirect(url_for('index'))
-            else:
-                flash('Invalid username or password.', 'error')
-                return render_template('login.html')
-
-        return render_template('login.html')
-    
-    @app.route("/register", methods=["GET", "POST"])
-    def register():
-        """User registration route."""
-        if current_user.is_authenticated:
-            return redirect(url_for('index'))
-        
-        if request.method == "POST":
-            username = request.form.get('username')
-            full_name = request.form.get('full_name')
-            password = request.form.get('password')
-            confirm_password = request.form.get('confirm_password')
-            role = request.form.get('role')
-            shift = request.form.get('shift')
-            
-            # Validation
-            if not all([username, full_name, password, confirm_password, role]):
-                flash('All fields are required.', 'error')
-                return render_template('register.html')
-            
-            if password != confirm_password:
-                flash('Passwords do not match.', 'error')
-                return render_template('register.html')
-            
-            if len(password) < 6:
-                flash('Password must be at least 6 characters long.', 'error')
-                return render_template('register.html')
-            
-            if role not in Role.get_all_roles():
-                flash('Invalid role selected.', 'error')
-                return render_template('register.html')
-            
-            # For incharges, shift is required
-            if role == 'Incharge' and (not shift or shift == ''):
-                flash('Shift selection is required for Incharge role.', 'error')
-                return render_template('register.html')
-            
-            # Validate shift value
-            if shift and shift not in ['AM', 'PM']:
-                flash('Invalid shift selected.', 'error')
-                return render_template('register.html')
-            
-            try:
-                user_id = create_user(username, full_name, password, role, shift)
-                flash('Account created successfully! You can now log in.', 'success')
+def role_required(*roles):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not current_user.is_authenticated:
                 return redirect(url_for('login'))
-            except ValueError as e:
-                flash(str(e), 'error')
-        
-        return render_template('register.html')
+            if current_user.role not in roles:
+                flash('Access denied. Insufficient permissions.')
+                return redirect(url_for('dashboard'))
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+def get_current_shift():
+    """Determine current shift based on time"""
+    now = datetime.now().time()
+    if time(5, 0) <= now < time(17, 0):
+        return 'AM'
+    else:
+        return 'PM'
+
+def get_shift_date():
+    """Get the date for shift tracking (PM shift uses previous date)"""
+    now = datetime.now()
+    if get_current_shift() == 'PM' and now.time() < time(5, 0):
+        return (now - timedelta(days=1)).date()
+    return now.date()
+
+def is_shift_active(user_shift):
+    """Check if user's shift is currently active"""
+    current_shift = get_current_shift()
+    return user_shift == current_shift
+
+def calculate_shares(base_price, addons, vehicle_data):
+    """Calculate sixb and washer shares based on business rules"""
+    base_shares = {'sixb': 0.7, 'washer': 0.3}
+    addon_shares = {
+        'Wax': {'sixb': 0.4, 'washer': 0.6},
+        'Buffing': {'sixb': 0.5, 'washer': 0.5},
+        'Deep Cleaning': {'sixb': 0.5, 'washer': 0.5},
+        'Engine Wash': {'sixb': 0.5, 'washer': 0.5}
+    }
     
-    @app.route("/logout")
-    def logout():
-        """User logout route."""
-        logout_user()
-        return redirect(url_for('login'))
-
-    # ============================================
-    # MAIN APPLICATION ROUTES
-    # ============================================
-
-    @app.route("/")
-    @require_login
-    def index():
-        """Main dashboard - requires login."""
-        # Allow all users to access the dashboard
-        
-        return render_template("index.html")
+    # Base calculation (after less 40)
+    base_after_deduction = float(base_price) - 40
+    sixb_base = base_after_deduction * base_shares['sixb']
+    washer_base = base_after_deduction * base_shares['washer']
     
-    @app.route("/users")
-    @require_admin
-    def users():
-        """User management page - requires admin access."""
-        return render_template("users.html")
-
-    @app.route("/summary")
-    @require_admin
-    def summary():
-        """Summary dashboard - requires admin/developer access."""
-        return render_template("summary.html")
-
-    @app.route("/database")
-    @require_developer
-    def database():
-        """Database management tool - requires developer access."""
-        return render_template("database.html")
-
-    # ============================================
-    # ORDER API ROUTES (Protected)
-    # ============================================
+    # Addon calculations
+    sixb_addons = 0
+    washer_addons = 0
     
-    @app.route("/api/orders", methods=["POST"])
-    @require_login
-    def api_add_order():
-        """Add new order - requires login."""
+    # vehicle_data['addons'] stored as JSON string or dict
+    if isinstance(vehicle_data.get('addons'), str):
+        try:
+            addons_data = json.loads(vehicle_data['addons'])
+        except Exception:
+            addons_data = {}
+    else:
+        addons_data = vehicle_data.get('addons') or {}
+
+    for addon in addons:
+        addon_price = addons_data.get(addon, 0)
+        shares = addon_shares.get(addon, {'sixb': 0.5, 'washer': 0.5})
+        sixb_addons += float(addon_price) * shares['sixb']
+        washer_addons += float(addon_price) * shares['washer']
+    
+    return {
+        'sixb_shares': sixb_base + sixb_addons,
+        'washer_shares': washer_base + washer_addons
+    }
+
+@app.route('/')
+def index():
+    if current_user.is_authenticated:
+        if current_user.role == 'incharge':
+            return redirect(url_for('dashboard'))
+        else:
+            return redirect(url_for('admin_dashboard'))
+    return redirect(url_for('login'))
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
         data = request.get_json()
-        if not data:
-            return jsonify({"error": "invalid JSON"}), 400
-        oid = add_order(data)
-        return jsonify({"status": "ok", "id": oid}), 201
+        username = data['username']
+        password = data['password']
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+        user_data = cursor.fetchone()
+        conn.close()
+        
+        if user_data and user_data['password_hash'] and check_password_hash(user_data['password_hash'], password):
+            user = User(
+                id=user_data['id'],
+                username=user_data['username'],
+                full_name=user_data['full_name'],
+                role=user_data['role'],
+                shift=user_data['shift']
+            )
+            login_user(user)
+            return jsonify({'success': True, 'role': user.role})
+        
+        return jsonify({'success': False, 'message': 'Invalid credentials'})
+    
+    return render_template('login.html')
 
-    @app.route("/api/orders", methods=["GET"])
-    @require_login
-    def api_list_orders():
-        """List orders - requires login with role-based filtering.
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
 
-        - Non-admin/dev users: show orders where w_name == current_user.full_name
-        AND timestamp is within current user's current shift window.
-        - Admin/dev users: if both 'date' and 'shift' query params are provided,
-        show orders only for that shift/window on that date (regardless of w_name).
-        Otherwise, admin/dev users may use optional date/month filters as before.
-        """
-        # Base query for new order structure
-        clause = """
-            SELECT id, vehicle_name, plate_no, w_vac, addons, price, less_40,
-                c_shares, w_share, w_name, sss, timestamp, shift, created_by
-            FROM orders
-            WHERE 1=1
-        """
-        params = []
+@app.route('/dashboard')
+@login_required
+@role_required('incharge')
+def dashboard():
+    shift_active = is_shift_active(current_user.shift)
+    return render_template('dashboard.html',
+                         user=current_user,
+                         shift_active=shift_active,
+                         current_shift=current_user.shift)
 
-        # Query params
-        date_param = request.args.get("date")   # expected format: "YYYY-MM-DD"
-        month_param = request.args.get("month") # expected format: "YYYY-MM"
-        shift_param = request.args.get("shift") # expected: "AM" or "PM"
+@app.route('/admin_dashboard')
+@login_required
+@role_required('admin', 'developer')
+def admin_dashboard():
+    return render_template('admin_dashboard.html', user=current_user)
 
-        # Determine user role & name
-        current_user_full_name = current_user.full_name
-        current_user_role      = current_user.role
-        is_admin_or_dev        = current_user_role in ['Admin', 'Developer']
+@app.route('/summary')
+@login_required
+@role_required('admin', 'developer')
+def summary():
+    return render_template('summary.html', user=current_user)
 
-        # If admin/dev AND they provided BOTH date AND shift -> compute explicit shift window for that date
-        if is_admin_or_dev and date_param and shift_param:
-            # Validate shift_param
-            shift_param = shift_param.upper()
-            if shift_param not in ('AM', 'PM'):
-                return jsonify({"error": "Invalid shift parameter; must be 'AM' or 'PM'."}), 400
+@app.route('/users')
+@login_required
+@role_required('admin', 'developer')
+def users():
+    return render_template('users.html', user=current_user)
 
-            # Parse date_param
+@app.route('/vehicles')
+@login_required
+def vehicles():
+    return render_template('vehicles.html', user=current_user)
+
+@app.route('/api/orders', methods=['GET', 'POST'])
+@login_required
+def api_orders():
+    if request.method == 'POST':
+        data = request.get_json()
+
+        # Log the incoming data for debugging
+        app.logger.info(f"Order data received: {data}")
+
+        # Get vehicle data for calculations
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM vehicles WHERE vehicle_name = ?", (data['vehicle_type'],))
+        vehicle_data = cursor.fetchone()
+
+        if not vehicle_data:
+            # If no vehicle found, use empty addon dict to avoid crashes
+            vehicle_data = {'addons': '{}'}
+        else:
+            # Convert sqlite3.Row to dict for compatibility
+            vehicle_data = dict(vehicle_data)
+
+        # Calculate shares
+        shares = calculate_shares(
+            data['base_price'],
+            data.get('addons', []),
+            vehicle_data
+        )
+
+        # Ensure washer_name is not null
+        washer_name = data.get('washer_name', '')
+        if not washer_name:
+            washer_name = 'Unknown Washer'
+
+        # Log the washer name being used
+        app.logger.info(f"Using washer_name: {washer_name}")
+
+        # Insert order
+        order_data = (
+            current_user.full_name,
+            washer_name,
+            data['vehicle_type'],
+            data['base_service'],
+            data['base_price'],
+            data.get('plate_number', ''),
+            'yes' if data.get('w_vac') else 'no',
+            json.dumps(data.get('addons', [])),
+            shares['washer_shares'],
+            shares['sixb_shares'],
+            2,  # SSS always 2
+            5 if data.get('w_vac') else 0,  # VAC
+            40,  # less 40 always 40
+            current_user.shift,
+            datetime.now().isoformat()
+        )
+
+        cursor.execute("""
+            INSERT INTO orders (incharge_name, washer_name, vehicle_type, base_service, base_price,
+            plate_number, w_vac, addons, washer_shares, sixb_shares, sss, vac, less_40,
+            shift, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, order_data)
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True})
+
+    # GET orders with optional date and shift filters
+    date = request.args.get('date')
+    shift = request.args.get('shift')
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    if date and shift:
+        # Filter by specific date and shift
+        cursor.execute("""
+            SELECT * FROM orders
+            WHERE date(timestamp) = ? AND shift = ?
+            ORDER BY timestamp DESC
+        """, (date, shift))
+    elif current_user.role == 'incharge':
+        # For incharge users, show only their orders for current shift
+        shift_date = get_shift_date()
+        cursor.execute("""
+            SELECT * FROM orders
+            WHERE incharge_name = ? AND shift = ? AND date(timestamp) = ?
+            ORDER BY timestamp DESC
+        """, (current_user.full_name, current_user.shift, str(shift_date)))
+    else:
+        # For admin/developer, show all orders
+        cursor.execute("SELECT * FROM orders ORDER BY timestamp DESC")
+
+    orders = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+
+    # Convert datetime strings to isoformat if needed and parse addons
+    for order in orders:
+        # Timestamp is stored as ISO string already
+        if order.get('timestamp'):
+            order['timestamp'] = order['timestamp']
+        # Parse addons (stored as JSON string)
+        try:
+            order['addons'] = json.loads(order.get('addons') or '[]')
+        except Exception:
+            order['addons'] = []
+
+    return jsonify(orders)
+
+@app.route('/api/update_summary', methods=['POST'])
+@login_required
+def api_update_summary():
+    """Update shift summary in the database"""
+    try:
+        # Get current shift information
+        shift_date = get_shift_date()
+        current_shift = get_current_shift()
+
+        # Calculate summary data from orders
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Get orders for current user and shift
+        cursor.execute("""
+            SELECT * FROM orders
+            WHERE incharge_name = ? AND shift = ? AND date(timestamp) = ?
+        """, (current_user.full_name, current_user.shift, str(shift_date)))
+
+        orders = [dict(r) for r in cursor.fetchall()]
+
+        if not orders:
+            conn.close()
+            return jsonify({'success': False, 'message': 'No orders found for this shift'})
+
+        # Calculate totals
+        total_gross_sales = sum(float(order.get('sixb_shares', 0)) for order in orders)
+        total_addons = 0
+        addons_details = {}
+
+        # Get vehicle data for addon calculations
+        for order in orders:
+            cursor.execute("SELECT addons FROM vehicles WHERE vehicle_name = ?", (order['vehicle_type'],))
+            vehicle = cursor.fetchone()
+            if vehicle:
+                try:
+                    addons_data = json.loads(vehicle['addons'])
+                except Exception:
+                    addons_data = {}
+                try:
+                    order_addons = json.loads(order.get('addons') or '[]')
+                except Exception:
+                    order_addons = []
+                for addon in order_addons:
+                    if addon in addons_data:
+                        total_addons += addons_data[addon]
+                        if addon not in addons_details:
+                            addons_details[addon] = 0
+                        addons_details[addon] += addons_data[addon]
+
+        forty_x = len(orders) * 40
+        pos_payment = len(orders) * 5
+
+        # Get other income and expenses from request
+        data = {}
+        if request.is_json:
             try:
-                # date_param format: YYYY-MM-DD
-                d = datetime.strptime(date_param, "%Y-%m-%d").date()
-            except ValueError:
-                return jsonify({"error": "Invalid date parameter; must be YYYY-MM-DD."}), 400
-
-            # Build shift window (naive datetimes, matching DB format)
-            if shift_param == 'AM':
-                # AM: same date 05:00 -> same date 17:00
-                shift_start = datetime(d.year, d.month, d.day, 5, 0, 0)
-                shift_end   = datetime(d.year, d.month, d.day, 17, 0, 0)
-            else:  # PM
-                # PM: date 17:00 -> date+1 05:00
-                shift_start = datetime(d.year, d.month, d.day, 17, 0, 0)
-                next_day = d + timedelta(days=1)
-                shift_end   = datetime(next_day.year, next_day.month, next_day.day, 5, 0, 0)
-
-            # Format as naive ISO strings (matches DB: YYYY-MM-DDThh:mm:ss[.ffffff])
-            start_str = shift_start.isoformat()
-            end_str   = shift_end.isoformat()
-
-            app.logger.debug(f"ADMIN SHIFT WINDOW requested: date={date_param} shift={shift_param}")
-            app.logger.debug(f"  START = {start_str}")
-            app.logger.debug(f"  END   = {end_str}")
-
-            # Add timestamp BETWEEN clause for that explicit window
-            clause += ' AND timestamp BETWEEN ? AND ?'
-            params.extend([start_str, end_str])
-
+                data = request.get_json() or {}
+            except Exception:
+                data = {}
         else:
-            # Non-admin/dev users: restrict to their current shift & their name
-            if not is_admin_or_dev:
-                user_shift = current_user.shift
-                if not user_shift:
-                    return jsonify({"error": "No shift assigned"}), 400
+            data = {}
 
-                # Current time in Manila to determine which shift window is "current"
-                manila_tz = pytz.timezone('Asia/Manila')
-                now = datetime.now(manila_tz)
+        other_income = sum(item['amount'] for item in data.get('other_income', [])) if data.get('other_income') else 0
+        expenses = sum(item['amount'] for item in data.get('expenses', [])) if data.get('expenses') else 0
 
-                # Determine current shift window (shift_start, shift_end) as aware datetimes,
-                # then strip tzinfo for DB string format (naive)
-                if user_shift == 'AM':
-                    # AM shift window: today 05:00 -> today 17:00
-                    shift_start = now.replace(hour=5, minute=0, second=0, microsecond=0)
-                    shift_end   = now.replace(hour=17, minute=0, second=0, microsecond=0)
-                else:
-                    # PM shift window spans two dates
-                    if now.hour >= 17:
-                        # we're in today's PM: today 17:00 -> tomorrow 05:00
-                        shift_start = now.replace(hour=17, minute=0, second=0, microsecond=0)
-                        shift_end   = (now + timedelta(days=1)).replace(hour=5, minute=0, second=0, microsecond=0)
-                    elif now.hour < 5:
-                        # we're still in overnight PM shift: yesterday 17:00 -> today 05:00
-                        shift_start = (now - timedelta(days=1)).replace(hour=17, minute=0, second=0, microsecond=0)
-                        shift_end   = now.replace(hour=5, minute=0, second=0, microsecond=0)
-                    else:
-                        # during daytime hours (05:00-17:00) the most recent PM window was yesterday 17:00->today 05:00
-                        shift_start = (now - timedelta(days=1)).replace(hour=17, minute=0, second=0, microsecond=0)
-                        shift_end   = now.replace(hour=5, minute=0, second=0, microsecond=0)
+        # Prepare summary data
+        total_vac = sum(float(order.get('vac', 0)) for order in orders)
+        summary_data = {
+            'incharge_name': current_user.full_name,
+            'date': str(shift_date),
+            'shift': current_shift,
+            'addons': json.dumps(addons_details),
+            'other_income': json.dumps(data.get('other_income', [])),
+            'expenses': json.dumps(data.get('expenses', [])),
+            'forty_x': forty_x,
+            'wages': 400,
+            'total_gross_sales': total_gross_sales,
+            'total_sss': len(orders) * 2,  # 2 SSS per order
+            'total_vac': total_vac,
+            'total_addons': total_addons,
+            'total_other_income': other_income,
+            'gcash': 0,  # Not implemented yet
+            'pos_payment': pos_payment,
+            'grand_total': total_gross_sales + forty_x + total_addons + other_income - expenses - 400 - pos_payment - total_vac
+        }
 
-                # Strip tzinfo and format naive ISO strings
-                shift_start_naive = shift_start.replace(tzinfo=None)
-                shift_end_naive   = shift_end.replace(tzinfo=None)
-                start_str = shift_start_naive.isoformat()
-                end_str   = shift_end_naive.isoformat()
+        # Upsert into shift_summaries
+        # Assumes a UNIQUE constraint exists on (incharge_name, date, shift)
+        cursor.execute("""
+            INSERT INTO shift_summaries
+            (incharge_name, date, shift, addons, other_income, expenses, forty_x, wages,
+            total_gross_sales, total_sss, total_vac, total_addons,
+            total_other_income, gcash, pos_payment, grand_total)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(incharge_name, date, shift) DO UPDATE SET
+            addons = excluded.addons,
+            other_income = excluded.other_income,
+            expenses = excluded.expenses,
+            forty_x = excluded.forty_x,
+            wages = excluded.wages,
+            total_gross_sales = excluded.total_gross_sales,
+            total_sss = excluded.total_sss,
+            total_vac = excluded.total_vac,
+            total_addons = excluded.total_addons,
+            total_other_income = excluded.total_other_income,
+            gcash = excluded.gcash,
+            pos_payment = excluded.pos_payment,
+            grand_total = excluded.grand_total
+        """, (
+            summary_data['incharge_name'],
+            summary_data['date'],
+            summary_data['shift'],
+            summary_data['addons'],
+            summary_data.get('other_income', '[]'),
+            summary_data['expenses'],
+            summary_data['forty_x'],
+            summary_data['wages'],
+            summary_data['total_gross_sales'],
+            summary_data['total_sss'],
+            summary_data['total_vac'],
+            summary_data['total_addons'],
+            summary_data['total_other_income'],
+            summary_data['gcash'],
+            summary_data['pos_payment'],
+            summary_data['grand_total']
+        ))
 
-                app.logger.debug(f"USER SHIFT WINDOW for {current_user_full_name} ({user_shift}):")
-                app.logger.debug(f"  START = {start_str}")
-                app.logger.debug(f"  END   = {end_str}")
+        conn.commit()
+        conn.close()
 
-                # Add filters: by carwasher name AND timestamp within current shift
-                clause += ' AND w_name = ? AND timestamp BETWEEN ? AND ?'
-                params.extend([current_user_full_name, start_str, end_str])
+        return jsonify({'success': True, 'message': 'Shift summary updated successfully'})
 
-            else:
-                # Admin/dev without explicit (date+shift): allow optional date/month filters below
-                # If the caller provided date/month, apply those filters here.
-                if date_param:
-                    clause += ' AND DATE(timestamp) = ?'
-                    params.append(date_param)
-                elif month_param:
-                    clause += ' AND strftime("%Y-%m", timestamp) = ?'
-                    params.append(month_param)
+    except Exception as e:
+        app.logger.exception("Error updating shift summary")
+        return jsonify({'success': False, 'message': str(e)})
 
-        # If we reached here and the caller was an admin/dev AND they provided date/month but not the combined (date+shift),
-        # the date/month filters were already applied above in the final 'else' branch. For non-admins we already used the
-        # current shift window and ignored date/month query params (this matches original behavior).
+@app.route('/api/vehicles', methods=['GET', 'POST', 'PUT'])
+@login_required
+def api_vehicles():
+    if request.method == 'POST':
+        data = request.get_json()
+        vehicle_name = data['vehicle_name']
+        bases = data['bases']
+        addons = data['addons']
 
-        # Execute query
-        with get_db() as conn:
-            app.logger.debug(f"FINAL SQL clause: {clause}")
-            app.logger.debug(f"FINAL params: {params}")
-            rows = conn.execute(clause, params).fetchall()
+        # Check if vehicle already exists
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM vehicles WHERE vehicle_name = ?", (vehicle_name,))
+        existing_vehicle = cursor.fetchone()
 
-        # Marshal results
-        orders = []
+        if existing_vehicle:
+            conn.close()
+            return jsonify({'success': False, 'message': 'Vehicle already exists'}), 400
+
+        # Insert new vehicle
+        vehicle_data = (
+            vehicle_name,
+            json.dumps(bases),
+            json.dumps(addons)
+        )
+        cursor.execute("""
+            INSERT INTO vehicles (vehicle_name, bases, addons)
+            VALUES (?, ?, ?)
+        """, vehicle_data)
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True})
+
+    elif request.method == 'PUT':
+        data = request.get_json()
+        vehicle_name = data['vehicle_name']
+        bases = data['bases']
+        addons = data['addons']
+
+        # Update existing vehicle
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        vehicle_data = (
+            json.dumps(bases),
+            json.dumps(addons),
+            vehicle_name
+        )
+        cursor.execute("""
+            UPDATE vehicles
+            SET bases = ?, addons = ?
+            WHERE vehicle_name = ?
+        """, vehicle_data)
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True})
+
+    # GET method - existing functionality
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM vehicles")
+    vehicles = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+
+    # Parse JSON fields
+    for vehicle in vehicles:
+        try:
+            vehicle['bases'] = json.loads(vehicle.get('bases') or '[]')
+        except Exception:
+            vehicle['bases'] = []
+        try:
+            vehicle['addons'] = json.loads(vehicle.get('addons') or '{}')
+        except Exception:
+            vehicle['addons'] = {}
+
+    return jsonify(vehicles)
+
+@app.route('/api/shift_summary/<date>/<shift>')
+@login_required
+def api_shift_summary(date, shift):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT * FROM shift_summaries
+        WHERE date = ? AND shift = ?
+    """, (date, shift))
+    summary = cursor.fetchone()
+    conn.close()
+
+    if summary:
+        summary = dict(summary)
+        # Parse JSON fields
+        try:
+            summary['addons'] = json.loads(summary.get('addons') or '{}')
+        except Exception:
+            summary['addons'] = {}
+        try:
+            summary['expenses'] = json.loads(summary.get('expenses') or '[]')
+        except Exception:
+            summary['expenses'] = []
+        try:
+            summary['other_income'] = json.loads(summary.get('other_income', '[]') or '[]')
+        except Exception:
+            summary['other_income'] = []
+        return jsonify(summary)
+
+    return jsonify(None)
+
+@app.route('/api/users', methods=['GET', 'POST'])
+@login_required
+@role_required('admin', 'developer')
+def api_users():
+    if request.method == 'POST':
+        data = request.get_json()
+        full_name = data['full_name']
+        username = data['username']
+        role = data['role']
+        shift = data.get('shift')
+        password = data.get('password')
+
+        # Check if current user is admin and trying to create a developer
+        if current_user.role == 'admin' and role == 'developer':
+            return jsonify({'success': False, 'message': 'Admins cannot create developer accounts'}), 403
+
+        # Check if username already exists
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+        existing_user = cursor.fetchone()
+
+        if existing_user:
+            conn.close()
+            return jsonify({'success': False, 'message': 'Username already exists'}), 400
+
+        # Hash password if provided
+        password_hash = None
+        if password:
+            password_hash = generate_password_hash(password)
+
+        # Insert new user
+        user_data = (full_name, username, password_hash, role, shift)
+        cursor.execute("""
+            INSERT INTO users (full_name, username, password_hash, role, shift)
+            VALUES (?, ?, ?, ?, ?)
+        """, user_data)
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True})
+
+    # GET all users
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users")
+    users = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+
+    return jsonify(users)
+
+@app.route('/api/users/<int:user_id>', methods=['PUT', 'DELETE'])
+@login_required
+@role_required('admin', 'developer')
+def api_user(user_id):
+    if request.method == 'PUT':
+        data = request.get_json()
+        full_name = data.get('full_name')
+        username = data.get('username')
+        role = data.get('role')
+        shift = data.get('shift')
+        password = data.get('password')
+
+        # Get the target user's current role
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT role FROM users WHERE id = ?", (user_id,))
+        target_user = cursor.fetchone()
+
+        if not target_user:
+            conn.close()
+            return jsonify({'success': False, 'message': 'User not found'}), 404
+
+        # Check if current user is admin trying to edit a developer
+        if current_user.role == 'admin' and target_user['role'] == 'developer':
+            conn.close()
+            return jsonify({'success': False, 'message': 'Admins cannot edit developer accounts'}), 403
+
+        # Check if current user is admin trying to assign developer role
+        if current_user.role == 'admin' and role == 'developer':
+            conn.close()
+            return jsonify({'success': False, 'message': 'Admins cannot assign developer role'}), 403
+
+        # Check if username is being changed to an existing one
+        if username:
+            cursor.execute("SELECT * FROM users WHERE username = ? AND id != ?", (username, user_id))
+            existing_user = cursor.fetchone()
+            if existing_user:
+                conn.close()
+                return jsonify({'success': False, 'message': 'Username already exists'}), 400
+
+        # Build update query
+        update_fields = []
+        update_params = []
+
+        if full_name:
+            update_fields.append("full_name = ?")
+            update_params.append(full_name)
+        if username:
+            update_fields.append("username = ?")
+            update_params.append(username)
+        if role:
+            update_fields.append("role = ?")
+            update_params.append(role)
+        if shift is not None:
+            update_fields.append("shift = ?")
+            update_params.append(shift)
+
+        # Handle password update separately
+        if password:
+            password_hash = generate_password_hash(password)
+            update_fields.append("password_hash = ?")
+            update_params.append(password_hash)
+
+        update_params.append(user_id)
+
+        if update_fields:
+            cursor.execute(f"""
+                UPDATE users
+                SET {', '.join(update_fields)}
+                WHERE id = ?
+            """, update_params)
+
+            conn.commit()
+            conn.close()
+            return jsonify({'success': True})
+
+        conn.close()
+        return jsonify({'success': False, 'message': 'No data to update'}), 400
+
+    elif request.method == 'DELETE':
+        # Get the target user's current role
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT role FROM users WHERE id = ?", (user_id,))
+        target_user = cursor.fetchone()
+
+        if not target_user:
+            conn.close()
+            return jsonify({'success': False, 'message': 'User not found'}), 404
+
+        # Check if current user is admin trying to delete a developer
+        if current_user.role == 'admin' and target_user['role'] == 'developer':
+            conn.close()
+            return jsonify({'success': False, 'message': 'Admins cannot delete developer accounts'}), 403
+
+        # Delete user
+        cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True})
+
+@app.route('/database')
+@login_required
+@role_required('admin', 'developer')
+def database():
+    return render_template('database.html', user=current_user)
+
+@app.route('/api/database/tables')
+@login_required
+@role_required('admin', 'developer')
+def api_database_tables():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+        tables = [row['name'] for row in cursor.fetchall()]
+        conn.close()
+        return jsonify({'success': True, 'tables': tables})
+    except Exception as e:
+        app.logger.exception("Error listing tables")
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/database/table/<table_name>')
+@login_required
+@role_required('admin', 'developer')
+def api_database_table(table_name):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        # Basic protection: prevent sqlite meta queries via table_name (still be careful in production)
+        if not table_name.isidentifier():
+            conn.close()
+            return jsonify({'success': False, 'message': 'Invalid table name'}), 400
+
+        cursor.execute(f"SELECT * FROM {table_name}")
+        rows = [dict(r) for r in cursor.fetchall()]
+        conn.close()
+
+        # Convert timestamp-like strings if possible
         for row in rows:
-            orders.append({
-                'id':           row[0],
-                'vehicle_name': row[1],
-                'plate_no':     row[2],
-                'w_vac':        row[3],
-                'addons':       row[4],
-                'price':        row[5],
-                'less_40':      row[6],
-                'c_shares':     row[7],
-                'w_share':      row[8],
-                'w_name':       row[9],
-                'sss':          row[10],
-                'timestamp':    row[11],
-                'shift':        row[12],
-                'created_by':   row[13],
-            })
-        return jsonify(orders), 200
-
-    @app.route("/api/previous-shift-orders", methods=["GET"])
-    @require_login
-    def api_previous_shift_orders():
-        """Get orders from the user's previous shift - for incharges only."""
-        # Only incharges can access this endpoint
-        if current_user.role != 'Incharge':
-            return jsonify({"error": "Access denied"}), 403
-
-        # Get current user's shift
-        user_shift = current_user.shift
-        if not user_shift:
-            return jsonify({"error": "No shift assigned"}), 400
-
-        # Current time in Manila
-        manila_tz = pytz.timezone('Asia/Manila')
-        now = datetime.now(manila_tz)
-
-        # Determine previous shift boundaries
-        if user_shift == 'AM':
-            # AM shift: 05:00–17:00
-            if 5 <= now.hour < 17:
-                # Currently in AM → last AM was yesterday 05:00–17:00
-                start_time = (now - timedelta(days=1)).replace(hour=5, minute=0, second=0, microsecond=0)
-                end_time   = (now - timedelta(days=1)).replace(hour=17, minute=0, second=0, microsecond=0)
-            elif now.hour >= 17:
-                # Currently in PM → last AM was today 05:00–17:00
-                start_time = now.replace(hour=5, minute=0, second=0, microsecond=0)
-                end_time   = now.replace(hour=17, minute=0, second=0, microsecond=0)
-            else:
-                # Currently before 05:00 → still in PM from yesterday → last AM was yesterday 05:00–17:00
-                start_time = (now - timedelta(days=1)).replace(hour=5, minute=0, second=0, microsecond=0)
-                end_time   = (now - timedelta(days=1)).replace(hour=17, minute=0, second=0, microsecond=0)
-        else:
-            # PM shift: 17:00–05:00
-            if now.hour >= 17:
-                # Currently in PM → last PM was yesterday 17:00 → today 05:00
-                start_time = (now - timedelta(days=1)).replace(hour=17, minute=0, second=0, microsecond=0)
-                end_time   = (now + timedelta(days=1)).replace(hour=5, minute=0, second=0, microsecond=0)
-            elif now.hour < 5:
-                # Currently in the tail end of PM → last PM was two nights ago 17:00 → yesterday 05:00
-                start_time = (now - timedelta(days=2)).replace(hour=17, minute=0, second=0, microsecond=0)
-                end_time   = (now - timedelta(days=1)).replace(hour=5, minute=0, second=0, microsecond=0)
-            else:
-                # Currently in AM → last PM was yesterday 17:00 → today 05:00
-                start_time = (now - timedelta(days=1)).replace(hour=17, minute=0, second=0, microsecond=0)
-                end_time   = now.replace(hour=5, minute=0, second=0, microsecond=0)
-
-        # Strip timezone so format matches DB (naive ISO)
-        start_naive = start_time.replace(tzinfo=None)
-        end_naive   = end_time.replace(tzinfo=None)
-        start_str = start_naive.isoformat()   # e.g. "2025-08-07T05:00:00"
-        end_str   = end_naive.isoformat()     # e.g. "2025-08-07T17:00:00"
-
-        # Debug logging
-        # app.logger.debug(f"Previous {user_shift} shift for user {current_user.full_name}:")
-        # app.logger.debug(f"  START = {start_str}")
-        # app.logger.debug(f"  END   = {end_str}")
-
-        # Query orders from previous shift, filtering on shift + full name + timestamp
-        clause = """
-            SELECT id, vehicle_name, plate_no, w_vac, addons, price, less_40,
-                c_shares, w_share, w_name, sss, timestamp, shift, created_by
-            FROM orders
-            WHERE shift     = ?
-            AND w_name    = ?
-            AND timestamp BETWEEN ? AND ?
-        """
-
-        with get_db() as conn:
-            rows = conn.execute(clause, (
-                user_shift,
-                current_user.full_name,
-                start_str,
-                end_str
-            )).fetchall()
-
-        # app.logger.debug(f"FOUND rows: {rows}")
-
-        # Convert to the expected format
-        orders = []
-        for row in rows:
-            order = {
-                'id': row[0],
-                'vehicle_name': row[1],
-                'plate_no': row[2],
-                'w_vac': row[3],
-                'addons': row[4],
-                'price': row[5],
-                'less_40': row[6],
-                'c_shares': row[7],
-                'w_share': row[8],
-                'w_name': row[9],
-                'sss': row[10],
-                'timestamp': row[11],
-                'shift': row[12],
-                'created_by': row[13]
-            }
-            orders.append(order)
-
-        return jsonify(orders), 200
-
-
-    @app.route("/api/summary", methods=["GET"])
-    @require_login
-    def api_summary():
-        """Get financial summary - admin/dev only."""
-        # Only admin/dev can see financial summaries
-        if current_user.role == 'Incharge':
-            return jsonify({"error": "Access denied"}), 403
-        
-        date = request.args.get("date")
-        month = request.args.get("month")
-        
-        clause = "SELECT price, c_shares, w_share FROM orders WHERE 1=1"
-        params = []
-        
-        if date:
-            clause += ' AND DATE(timestamp) = ?'
-            params.append(date)
-        elif month:
-            clause += ' AND strftime("%Y-%m", timestamp) = ?'
-            params.append(month)
-        
-        with get_db() as conn:
-            rows = conn.execute(clause, params).fetchall()
-        
-        total_income = sum(row[0] for row in rows)
-        total_expenses = len(rows) * 40  # LESS 40 per order
-        total_cetadcco_share = sum(row[1] for row in rows)
-        total_carwasher_share = sum(row[2] for row in rows)
-
-        return jsonify({
-            "income": total_income,
-            "expenses": total_expenses,
-            "cetadcco_share": total_cetadcco_share,
-            "carwasher_share": total_carwasher_share
-        }), 200
-
-    # ============================================
-    # USER MANAGEMENT API ROUTES (Admin Only)
-    # ============================================
-    
-    @app.route("/api/users", methods=["GET"])
-    @require_admin
-    def api_list_users():
-        """List all users - admin only."""
-        try:
-            users = get_all_users()
-            return jsonify([user.to_dict() for user in users]), 200
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-    
-    @app.route("/api/users/<int:user_id>", methods=["GET"])
-    @require_admin
-    def api_get_user(user_id):
-        """Get specific user - admin only."""
-        try:
-            user = get_user_by_id(user_id)
-            if not user:
-                return jsonify({"error": "User not found"}), 404
-            return jsonify(user.to_dict()), 200
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-    
-    @app.route("/api/users/create", methods=["POST"])
-    @require_admin
-    def api_create_user():
-        """Create new user - admin only."""
-        try:
-            data = request.get_json()
-            if not data:
-                return jsonify({"error": "No data provided"}), 400
-
-            username = data.get('username')
-            full_name = data.get('full_name')
-            password = data.get('password')
-            role = data.get('role')
-            shift = data.get('shift')
-            print(f"Role: {role}")
-
-            if not all([username, full_name, password, role]):
-                return jsonify({"error": "Missing required fields"}), 400
-
-            if role not in Role.get_all_roles():
-                return jsonify({"error": "Invalid role"}), 400
-
-            # For incharges, shift is required
-            if role == 'Incharge' and (not shift or shift == ''):
-                return jsonify({"error": "Shift is required for Incharge role"}), 400
-
-            user_id = create_user(username, full_name, password, role, shift=shift)
-            return jsonify({"message": "User created successfully", "id": user_id}), 201
-
-        except ValueError as e:
-            return jsonify({"error": str(e)}), 400
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-    
-    @app.route("/api/users/update", methods=["POST"])
-    @require_admin
-    def api_update_user():
-        """Update user - admin only."""
-        try:
-            data = request.get_json()
-            if not data:
-                return jsonify({"error": "No data provided"}), 400
-            
-            user_id = data.get('user_id')
-            if not user_id:
-                return jsonify({"error": "User ID required"}), 400
-            
-            user = get_user_by_id(user_id)
-            if not user:
-                return jsonify({"error": "User not found"}), 404
-            
-            # Update role if provided
-            if 'role' in data and data['role'] != user.role:
-                if data['role'] not in Role.get_all_roles():
-                    return jsonify({"error": "Invalid role"}), 400
-                update_user_role(user_id, data['role'])
-            
-            # Update password if provided
-            if 'password' in data and data['password']:
-                if len(data['password']) < 6:
-                    return jsonify({"error": "Password must be at least 6 characters"}), 400
-                change_user_password(user_id, data['password'])
-            
-            # Update active status if provided
-            if 'is_active' in data:
-                if data['is_active']:
-                    activate_user(user_id)
-                else:
-                    deactivate_user(user_id)
-            
-            # Update shift times if provided
-            if 'shift_start' in data and 'shift_end' in data:
-                update_user_shift(user_id, data['shift_start'], data['shift_end'])
-            
-            return jsonify({"message": "User updated successfully"}), 200
-            
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-    
-    @app.route("/api/users/<int:user_id>/activate", methods=["POST"])
-    @require_admin
-    def api_activate_user(user_id):
-        """Activate user - admin only."""
-        try:
-            if activate_user(user_id):
-                return jsonify({"message": "User activated successfully"}), 200
-            else:
-                return jsonify({"error": "User not found"}), 404
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-    
-    @app.route("/api/users/<int:user_id>/deactivate", methods=["POST"])
-    @require_admin
-    def api_deactivate_user(user_id):
-        """Deactivate user - admin only."""
-        try:
-            if deactivate_user(user_id):
-                return jsonify({"message": "User deactivated successfully"}), 200
-            else:
-                return jsonify({"error": "User not found"}), 404
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    # ============================================
-    # SHIFT SUMMARY API ENDPOINTS
-    # ============================================
-
-    @app.route("/api/shift-summary", methods=["POST"])
-    @require_login
-    def api_submit_shift_summary():
-        """Submit shift summary data - InCharge only."""
-        try:
-            # Only InCharges can submit shift summaries
-            if not current_user.is_incharge():
-                return jsonify({"error": "Unauthorized. Only InCharges can submit shift summaries."}), 403
-
-            data = request.get_json()
-            if not data:
-                return jsonify({"error": "No data provided"}), 400
-
-            # Get current date and user's shift
-            from datetime import datetime
-            current_time = datetime.now()
-            current_date = current_time.strftime('%Y-%m-%d')
-            
-            # Determine shift based on current time or use user's shift
-            user_shift = current_user.shift
-            if not user_shift:
-                # Fallback to time-based shift determination
-                user_shift = "AM" if 5 <= current_time.hour < 17 else "PM"
-
-            # Extract form data
-            summary_dict = {
-                'date': current_date,
-                'shift': user_shift,
-                'carwasher_name': current_user.full_name,
-                'total_gross_sales': float(data.get('total_gross_sales', 0)),
-                'forty_x': float(data.get('forty_x', 0)),
-                'addons': data.get('addons', {}),  # Dictionary of addon name: amount
-                'other_income': data.get('other_income', {}),  # Dictionary of income type: amount
-                'expenses': data.get('expenses', {}),  # Dictionary of expense name: {description, amount}
-                'wages': float(data.get('wages', 0)),
-                'gcash': float(data.get('gcash', 0)),
-                'grand_total': float(data.get('grand_total', 0)),
-                'created_by': current_user.id
-            }
-
-            # Validate required fields
-            required_fields = ['total_gross_sales', 'forty_x', 'wages', 'grand_total']
-            for field in required_fields:
-                if field not in data:
-                    return jsonify({"error": f"Missing required field: {field}"}), 400
-
-            # Save to database
-            summary_id = add_shift_summary(summary_dict)
-            
-            return jsonify({
-                "message": "Shift summary submitted successfully",
-                "id": summary_id,
-                "date": current_date,
-                "shift": user_shift
-            }), 201
-
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    @app.route("/api/shift-summary", methods=["GET"])
-    @require_admin
-    def api_get_shift_summaries():
-        """Get shift summaries - Admin/Developer only."""
-        try:
-            # Get query parameters
-            date = request.args.get('date')
-            shift = request.args.get('shift')
-            carwasher_name = request.args.get('carwasher_name')
-
-            if date and shift and carwasher_name:
-                # Get specific summary
-                summary = get_shift_summary(date, shift, carwasher_name)
-                return jsonify(summary), 200
-            elif date and shift:
-                # Get all summaries for date and shift
-                summaries = get_shift_summary(date, shift)
-                return jsonify(summaries), 200
-            else:
-                # Get all summaries with optional filters
-                summaries = get_all_shift_summaries(date, shift)
-                return jsonify(summaries), 200
-
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-
-
-    @app.route("/api/shift-summary-exists", methods=["GET"])
-    @require_login
-    def api_check_shift_summary_exists():
-        """Check if shift summary exists for current user's date/shift."""
-        try:
-            from datetime import datetime
-            current_time = datetime.now()
-            current_date = current_time.strftime('%Y-%m-%d')
-            
-            # Get user's shift
-            user_shift = current_user.shift
-            if not user_shift:
-                # Fallback to time-based shift determination
-                user_shift = "AM" if 5 <= current_time.hour < 17 else "PM"
-            
-            # Check if summary exists
-            summary = get_shift_summary(current_date, user_shift, current_user.full_name)
-            exists = len(summary) > 0 if isinstance(summary, list) else summary is not None
-            
-            return jsonify({
-                "exists": exists,
-                "date": current_date,
-                "shift": user_shift,
-                "carwasher_name": current_user.full_name
-            }), 200
-            
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-
-    # ============================================
-    # DATABASE MANAGEMENT API ENDPOINTS (Developer Only)
-    # ============================================
-
-    @app.route("/api/database/<string:table_name>", methods=["GET"])
-    @require_developer
-    def api_get_table_data(table_name):
-        """Get data from a specific table - developer only."""
-        try:
-            if table_name not in ['orders', 'users', 'shift_summaries']:
-                return jsonify({"error": "Invalid table name"}), 400
-
-            with get_db() as conn:
-                c = conn.cursor()
-                c.execute(f"SELECT * FROM {table_name}")
-                rows = c.fetchall()
-                columns = [description[0] for description in c.description]
-
-                # Convert rows to list of dictionaries
-                data = []
-                for row in rows:
-                    row_data = {}
-                    for i, column in enumerate(columns):
-                        row_data[column] = row[i]
-                    data.append(row_data)
-
-                return jsonify(data), 200
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    @app.route("/api/database/<string:table_name>", methods=["POST"])
-    @require_developer
-    def api_create_table_row(table_name):
-        """Create a new row in a specific table - developer only."""
-        try:
-            if table_name not in ['orders', 'users', 'shift_summaries']:
-                return jsonify({"error": "Invalid table name"}), 400
-
-            data = request.get_json()
-            if not data:
-                return jsonify({"error": "No data provided"}), 400
-
-            with get_db() as conn:
-                c = conn.cursor()
-
-                # Get column names
-                c.execute(f"PRAGMA table_info({table_name})")
-                columns = [col[1] for col in c.fetchall() if col[1] != 'id']
-
-                # Filter data to only include valid columns
-                filtered_data = {k: v for k, v in data.items() if k in columns}
-
-                # Handle required fields and defaults
-                if table_name == 'users':
-                    if 'password_hash' not in filtered_data or not filtered_data['password_hash']:
-                        if 'password' in data and data['password']:
-                            filtered_data['password_hash'] = generate_password_hash(data['password'])
-                        else:
-                            filtered_data['password_hash'] = generate_password_hash('default123')
-                    if 'is_active' not in filtered_data:
-                        filtered_data['is_active'] = 1
-                    if 'created_at' not in filtered_data:
-                        from datetime import datetime
-                        filtered_data['created_at'] = datetime.utcnow().isoformat()
-
-                # Build query
-                placeholders = ', '.join(['?'] * len(filtered_data))
-                column_names = ', '.join(filtered_data.keys())
-                query = f"INSERT INTO {table_name} ({column_names}) VALUES ({placeholders})"
-
-                c.execute(query, tuple(filtered_data.values()))
-                conn.commit()
-
-                return jsonify({"message": "Row created successfully", "id": c.lastrowid}), 201
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    @app.route("/api/database/<string:table_name>/<int:row_id>", methods=["PUT"])
-    @require_developer
-    def api_update_table_row(table_name, row_id):
-        """Update a specific row in a table - developer only."""
-        try:
-            if table_name not in ['orders', 'users', 'shift_summaries']:
-                return jsonify({"error": "Invalid table name"}), 400
-
-            data = request.get_json()
-            if not data:
-                return jsonify({"error": "No data provided"}), 400
-
-            with get_db() as conn:
-                c = conn.cursor()
-
-                # Get column names
-                c.execute(f"PRAGMA table_info({table_name})")
-                columns = [col[1] for col in c.fetchall() if col[1] != 'id']
-
-                # Filter data to only include valid columns
-                filtered_data = {k: v for k, v in data.items() if k in columns}
-
-                # Handle password hashing for users table
-                if table_name == 'users' and 'password' in filtered_data:
-                    filtered_data['password_hash'] = generate_password_hash(filtered_data.pop('password'))
-
-                # Build query
-                set_clause = ', '.join([f"{k} = ?" for k in filtered_data.keys()])
-                query = f"UPDATE {table_name} SET {set_clause} WHERE id = ?"
-
-                c.execute(query, (*filtered_data.values(), row_id))
-                conn.commit()
-
-                if c.rowcount == 0:
-                    return jsonify({"error": "Row not found or no changes made"}), 404
-
-                return jsonify({"message": "Row updated successfully"}), 200
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    @app.route("/api/database/<string:table_name>/delete", methods=["POST"])
-    @require_developer
-    def api_delete_table_rows(table_name):
-        """Delete rows from a specific table - developer only."""
-        try:
-            if table_name not in ['orders', 'users', 'shift_summaries']:
-                return jsonify({"error": "Invalid table name"}), 400
-
-            data = request.get_json()
-            if not data or 'ids' not in data:
-                return jsonify({"error": "No IDs provided"}), 400
-
-            ids = data['ids']
-            if not isinstance(ids, list) or len(ids) == 0:
-                return jsonify({"error": "Invalid IDs format"}), 400
-
-            with get_db() as conn:
-                c = conn.cursor()
-
-                # For users table, we'll do a soft delete (set is_active to 0) instead of hard delete
-                if table_name == 'users':
-                    placeholders = ', '.join(['?'] * len(ids))
-                    query = f"UPDATE {table_name} SET is_active = 0 WHERE id IN ({placeholders})"
-                else:
-                    placeholders = ', '.join(['?'] * len(ids))
-                    query = f"DELETE FROM {table_name} WHERE id IN ({placeholders})"
-
-                c.execute(query, ids)
-                conn.commit()
-
-                return jsonify({"message": "Rows deleted successfully", "deleted_count": c.rowcount}), 200
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    return app
-
-if __name__ == "__main__":
-    create_app().run(debug=True, port=5000)
+            for key, value in list(row.items()):
+                if isinstance(value, str):
+                    # attempt to detect ISO datetime strings and leave as-is
+                    # keep as string for JSON (already serializable)
+                    pass
+                elif isinstance(value, (datetime,)):
+                    row[key] = value.isoformat()
+        return jsonify({'success': True, 'rows': rows})
+    except Exception as e:
+        app.logger.exception("Error fetching table data")
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/database/table/<table_name>/row/<int:row_id>', methods=['DELETE'])
+@login_required
+@role_required('admin', 'developer')
+def api_database_delete_row(table_name, row_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        # Get primary key column name using PRAGMA table_info
+        cursor.execute(f"PRAGMA table_info({table_name})")
+        columns = cursor.fetchall()
+        if not columns:
+            conn.close()
+            return jsonify({'success': False, 'message': 'Table not found'}), 404
+
+        # columns are sqlite3.Row objects with fields: cid, name, type, notnull, dflt_value, pk
+        primary_key = columns[0]['name']
+
+        cursor.execute(f"DELETE FROM {table_name} WHERE {primary_key} = ?", (row_id,))
+        conn.commit()
+        conn.close()
+
+        return jsonify({'success': True})
+    except Exception as e:
+        app.logger.exception("Error deleting row")
+        return jsonify({'success': False, 'message': str(e)})
+
+if __name__ == '__main__':
+    # Ensure DB file exists (optional): just creates file if not present. Schema creation not handled here.
+    if not os.path.exists(DB_PATH):
+        open(DB_PATH, 'a').close()
+    app.run(debug=True)

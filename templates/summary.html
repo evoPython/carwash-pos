@@ -1,410 +1,177 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "base.html" %}
 
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Summary Dashboard</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/tables.css') }}" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='js/tabulator/tabulator.min.css') }}" />
-    <style>
-        .calendar-container {
-            display: flex;
-            justify-content: center;
-            margin: 2rem 0;
-        }
+{% block title %}Summary - Carwash POS{% endblock %}
 
-        .calendar {
-            width: 100%;
-            max-width: 800px;
-            border-collapse: collapse;
-        }
+{% block content %}
+<div class="dashboard-header mb-24">
+    <h1>Summary Reports</h1>
+    <p>View daily and shift summaries</p>
+</div>
 
-        .calendar th,
-        .calendar td {
-            border: 1px solid #ddd;
-            padding: 1rem;
-            text-align: center;
-            cursor: pointer;
-        }
-
-        .calendar th {
-            background-color: #f2f2f2;
-        }
-
-        .calendar td:hover {
-            background-color: #f0f0f0;
-        }
-
-        .shift-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 1rem;
-            margin: 2rem 0;
-        }
-
-        .shift-buttons button {
-            padding: 0.75rem 2rem;
-            font-size: 1rem;
-            cursor: pointer;
-        }
-
-        .back-button {
-            margin: 1rem 0;
-        }
-
-        .records-table {
-            margin: 2rem 0;
-        }
-        
-        .shift-summary-section {
-            margin-top: 2rem;
-            border-top: 2px solid #007bff;
-            padding-top: 1rem;
-        }
-        
-        .summary-columns {
-            display: flex;
-            gap: 2rem;
-            margin-top: 1rem;
-        }
-        
-        .summary-column {
-            flex: 1;
-            border: 1px solid #ddd;
-            padding: 1rem;
-            border-radius: 5px;
-            background-color: #f9f9f9;
-        }
-        
-        .summary-item {
-            margin: 0.5rem 0;
-            padding: 0.25rem 0;
-        }
-        
-        .summary-column h4 {
-            color: #007bff;
-            border-bottom: 1px solid #007bff;
-            padding-bottom: 0.5rem;
-            margin-bottom: 1rem;
-        }
-    </style>
-</head>
-
-<body>
-    <header>
-        <div class="header-center">
-            <h1>Summary Dashboard</h1>
-        </div>
-        <div class="header-right">
-            <a href="{{ url_for('index') }}" class="btn">Back to Dashboard</a>
-            <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
-        </div>
-    </header>
-
-    <main>
-        <div class="calendar-container">
-            <table class="calendar">
-                <thead>
-                    <tr>
-                        <th>Sun</th>
-                        <th>Mon</th>
-                        <th>Tue</th>
-                        <th>Wed</th>
-                        <th>Thu</th>
-                        <th>Fri</th>
-                        <th>Sat</th>
-                    </tr>
-                </thead>
-                <tbody id="calendar-body">
-                    <!-- Calendar dates will be inserted here by JavaScript -->
-                </tbody>
-            </table>
-        </div>
-
-        <div class="shift-buttons" style="display: none;">
-            <button id="btn-am" class="btn">AM Shift</button>
-            <button id="btn-pm" class="btn">PM Shift</button>
-        </div>
-
-        <div class="records-table">
-            <h2>Records for <span id="selected-date"></span> <span id="selected-shift"></span></h2>
-            <div id="records-table-container"></div>
-            
-            <!-- Shift Summary Section -->
-            <div class="shift-summary-section" id="shift-summary-section" style="display: none;">
-                <h3>Shift Summary for <span id="summary-date-shift"></span></h3>
-                <div id="shift-summary-container"></div>
+<div class="grid grid-cols-1">
+    <div class="card">
+        <div class="card-header">
+            <div class="flex justify-between items-center">
+                <h2>Select Date and Shift</h2>
+                <div class="flex gap-16 items-center">
+                    <select id="monthSelect" class="form-select">
+                        <!-- Will be populated by JavaScript -->
+                    </select>
+                    <select id="yearSelect" class="form-select">
+                        <!-- Will be populated by JavaScript -->
+                    </select>
+                </div>
             </div>
         </div>
-    </main>
+        <div class="card-body">
+            <div id="calendar" class="calendar"></div>
+        </div>
+    </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const calendarBody = document.getElementById('calendar-body');
-            const shiftButtons = document.querySelector('.shift-buttons');
-            const btnAM = document.getElementById('btn-am');
-            const btnPM = document.getElementById('btn-pm');
-            const selectedDateSpan = document.getElementById('selected-date');
-            const selectedShiftSpan = document.getElementById('selected-shift');
-            const recordsContainer = document.getElementById('records-table-container');
+    <div id="summaryResults" class="hidden">
+        <div class="card">
+            <div class="card-header">
+                <h3>Orders for <span id="selectedDateDisplay"></span></h3>
+            </div>
+            <div class="card-body">
+                <div class="table-container">
+                    <table class="table" id="summaryOrdersTable">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Plate</th>
+                                <th>Vehicle</th>
+                                <th>Service</th>
+                                <th>Base Price</th>
+                                <th>Addons</th>
+                                <th>W/Vac</th>
+                                <th>6B Shares</th>
+                                <th>Washer Shares</th>
+                                <th>SSS</th>
+                                <th>VAC</th>
+                                <th>Less 40</th>
+                                <th>Washer Name</th>
+                                <th>Incharge Name</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
 
-            let selectedDate = null;
-            let selectedShift = null;
+        <div class="grid grid-cols-2 gap-24 mt-24">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Expenses</h3>
+                </div>
+                <div class="card-body">
+                    <div class="table-container">
+                        <table class="table" id="expensesTable">
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th>Description</th>
+                                    <th>Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Expenses will be populated here -->
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="2"><strong>Total Expenses</strong></td>
+                                    <td><strong id="totalExpenses">₱0.00</strong></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
 
-            // Generate calendar for the current month
-            function generateCalendar() {
-                const now = new Date();
-                const year = now.getFullYear();
-                const month = now.getMonth();
+            <div class="card">
+                <div class="card-header">
+                    <h3>Other Income</h3>
+                </div>
+                <div class="card-body">
+                    <div class="table-container">
+                        <table class="table" id="otherIncomeTable">
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th>Description</th>
+                                    <th>Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Other income will be populated here -->
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="2"><strong>Total Other Income</strong></td>
+                                    <td><strong id="totalOtherIncomeDisplay">₱0.00</strong></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
 
-                // Get first and last day of month
-                const firstDay = new Date(year, month, 1);
-                const lastDay = new Date(year, month + 1, 0);
+            <div class="card">
+                <div class="card-header">
+                    <h3>Summary</h3>
+                </div>
+                <div class="card-body">
+                    <div class="summary-item">
+                        <span>Total Gross Sales</span>
+                        <span id="totalGrossSales">₱0.00</span>
+                    </div>
+                    <div class="summary-item">
+                        <span>40x</span>
+                        <span id="fortyX">₱0.00</span>
+                    </div>
+                    <div class="summary-item">
+                        <span>Total Addons Sales</span>
+                        <span id="totalAddonsSales">₱0.00</span>
+                    </div>
+                    <div class="summary-item">
+                        <span>Total Other Income</span>
+                        <span id="totalOtherIncome">₱0.00</span>
+                    </div>
+                    <div class="summary-item">
+                        <span>Total Expenses</span>
+                        <span id="totalExpensesDisplay">₱0.00</span>
+                    </div>
+                    <div class="summary-item">
+                        <strong>Grand Total</strong>
+                        <strong id="grandTotal">₱0.00</strong>
+                    </div>
+                </div>
+            </div>
 
-                // Clear existing calendar
-                calendarBody.innerHTML = '';
+            
+        </div>
+    </div>
+</div>
 
-                let row = document.createElement('tr');
-                let currentRow = row;
+<!-- Shift Selection Modal -->
+<div id="shiftModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Select Shift</h3>
+            <span class="close" onclick="closeModal('shiftModal')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <p>Select shift for <span id="modalDateDisplay"></span>:</p>
+            <div class="flex gap-16 mt-16">
+                <button class="btn btn-primary" onclick="loadSummaryData('AM')">AM Shift (5AM - 5PM)</button>
+                <button class="btn btn-primary" onclick="loadSummaryData('PM')">PM Shift (5PM - 5AM)</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
 
-                // Add empty cells for days before the first day of the month
-                for (let i = 0; i < firstDay.getDay(); i++) {
-                    const cell = document.createElement('td');
-                    currentRow.appendChild(cell);
-                }
-
-                // Add all days of the month
-                for (let day = 1; day <= lastDay.getDate(); day++) {
-                    const cell = document.createElement('td');
-                    cell.textContent = day;
-                    cell.dataset.date = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-
-                    // Highlight today
-                    if (day === now.getDate() && month === now.getMonth() && year === now.getFullYear()) {
-                        cell.classList.add('today');
-                    }
-
-                    cell.addEventListener('click', function () {
-                        selectedDate = this.dataset.date;
-                        selectedDateSpan.textContent = selectedDate;
-                        shiftButtons.style.display = 'flex';
-                        recordsContainer.innerHTML = '';
-                        selectedShift = null;
-                        selectedShiftSpan.textContent = '';
-                        
-                        // Hide shift summary section when new date is selected
-                        document.getElementById('shift-summary-section').style.display = 'none';
-                    });
-
-                    currentRow.appendChild(cell);
-
-                    // Start new row on Sunday
-                    if ((firstDay.getDay() + day) % 7 === 0 || day === lastDay.getDate()) {
-                        calendarBody.appendChild(currentRow);
-                        currentRow = document.createElement('tr');
-                    }
-                }
-            }
-
-            // Handle shift selection
-            function handleShiftSelection(shift) {
-                selectedShift = shift;
-                selectedShiftSpan.textContent = shift === 'AM' ? '(5:00 AM - 5:00 PM)' : '(5:00 PM - 5:00 AM)';
-
-                // Fetch records from API
-                fetchRecords(selectedDate, shift);
-                
-                // Also fetch and display shift summary
-                fetchAndDisplayShiftSummary(selectedDate, shift);
-            }
-
-            // Fetch records from API
-            function fetchRecords(date, shift) {
-                fetch(`/api/orders?date=${encodeURIComponent(date)}&shift=${encodeURIComponent(shift)}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (Array.isArray(data)) {
-                            displayRecords(data);
-                        } else {
-                            recordsContainer.innerHTML = '<p>No records found for this date and shift.</p>';
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error fetching records:', error);
-                        recordsContainer.innerHTML = '<p>Error loading records. Please try again.</p>';
-                    });
-            }
-
-            // Display records in a table
-            function displayRecords(records) {
-                if (records.length === 0) {
-                    recordsContainer.innerHTML = '<p>No records found for this date and shift.</p>';
-                    return;
-                }
-
-                // Create a simple table to display records
-                const table = document.createElement('table');
-                table.className = 'records-table';
-                table.style.width = '100%';
-                table.style.borderCollapse = 'collapse';
-
-                // Create table header
-                const thead = document.createElement('thead');
-                const headerRow = document.createElement('tr');
-                ['No.', 'Vehicle', 'Plate No', 'W/Vac', 'Price', 'Less 40', 'C-Shares', 'W-Share', 'W-Name', 'Timestamp'].forEach(header => {
-                    const th = document.createElement('th');
-                    th.textContent = header;
-                    th.style.border = '1px solid #ddd';
-                    th.style.padding = '0.5rem';
-                    th.style.backgroundColor = '#f2f2f2';
-                    headerRow.appendChild(th);
-                });
-                thead.appendChild(headerRow);
-                table.appendChild(thead);
-
-                // Create table body
-                const tbody = document.createElement('tbody');
-                records.forEach((record, index) => {
-                    const row = document.createElement('tr');
-
-                    // Add row number
-                    const numberCell = document.createElement('td');
-                    numberCell.textContent = index + 1;
-                    numberCell.style.border = '1px solid #ddd';
-                    numberCell.style.padding = '0.5rem';
-                    row.appendChild(numberCell);
-
-                    ['vehicle_name', 'plate_no', 'w_vac', 'price', 'less_40', 'c_shares', 'w_share', 'w_name'].forEach(key => {
-                        const cell = document.createElement('td');
-                        cell.textContent = record[key] || '';
-                        cell.style.border = '1px solid #ddd';
-                        cell.style.padding = '0.5rem';
-                        row.appendChild(cell);
-                    });
-
-                    // Add formatted timestamp
-                    const timestampCell = document.createElement('td');
-                    if (record.timestamp) {
-                        // Convert ISO timestamp to human-readable format
-                        const date = new Date(record.timestamp);
-                        const formattedDate = `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${date.getFullYear()}`;
-                        const formattedTime = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
-                        timestampCell.textContent = `${formattedDate} ${formattedTime}`;
-                    } else {
-                        timestampCell.textContent = '';
-                    }
-                    timestampCell.style.border = '1px solid #ddd';
-                    timestampCell.style.padding = '0.5rem';
-                    row.appendChild(timestampCell);
-
-                    tbody.appendChild(row);
-                });
-                table.appendChild(tbody);
-
-                recordsContainer.innerHTML = '';
-                recordsContainer.appendChild(table);
-            }
-
-            // Fetch and display shift summary
-            function fetchAndDisplayShiftSummary(date, shift) {
-                fetch(`/api/shift-summary?date=${encodeURIComponent(date)}&shift=${encodeURIComponent(shift)}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        const shiftSummarySection = document.getElementById('shift-summary-section');
-                        const summaryDateShift = document.getElementById('summary-date-shift');
-                        const summaryContainer = document.getElementById('shift-summary-container');
-                        
-                        if (Array.isArray(data) && data.length > 0) {
-                            // Display the summary data
-                            const summary = data[0]; // Should only be one summary per date/shift
-                            
-                            summaryDateShift.textContent = `${date} - ${shift === 'AM' ? '(5:00 AM - 5:00 PM)' : '(5:00 PM - 5:00 AM)'} - ${summary.carwasher_name}`;
-                            
-                            // Create the two-column layout similar to temporary form
-                            const summaryHTML = `
-                                <div class="summary-columns">
-                                    <div class="summary-column">
-                                        <h4>SALES</h4>
-                                        <div class="summary-item">
-                                            <strong>Total Gross Sales:</strong> ₱${summary.total_gross_sales.toFixed(2)}
-                                        </div>
-                                        <div class="summary-item">
-                                            <strong>40x:</strong> ₱${summary.forty_x.toFixed(2)}
-                                        </div>
-                                        
-                                        <h4 style="margin-top: 1rem;">ADDONS</h4>
-                                        ${Object.entries(summary.addons).map(([name, amount]) => 
-                                            `<div class="summary-item"><strong>${name}:</strong> ₱${amount.toFixed(2)}</div>`
-                                        ).join('')}
-                                        
-                                        <div class="summary-item" style="margin-top: 1rem; font-weight: bold; border-top: 1px solid #ccc; padding-top: 0.5rem;">
-                                            <strong>Total Sales: ₱${(summary.total_gross_sales + summary.forty_x + Object.values(summary.addons).reduce((sum, val) => sum + val, 0)).toFixed(2)}</strong>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="summary-column">
-                                        <h4>OTHER INCOME</h4>
-                                        ${Object.entries(summary.other_income).map(([name, amount]) => 
-                                            `<div class="summary-item"><strong>${name}:</strong> ₱${amount.toFixed(2)}</div>`
-                                        ).join('')}
-                                        ${Object.keys(summary.other_income).length === 0 ? '<div class="summary-item">No other income recorded</div>' : ''}
-                                        
-                                        <h4 style="margin-top: 1rem;">EXPENSES</h4>
-                                        ${Object.entries(summary.expenses).map(([name, expense]) => 
-                                            `<div class="summary-item">
-                                                <strong>${name}:</strong> ${expense.description} - ₱${expense.amount.toFixed(2)}
-                                             </div>`
-                                        ).join('')}
-                                        ${Object.keys(summary.expenses).length === 0 ? '<div class="summary-item">No expenses recorded</div>' : ''}
-                                        
-                                        <div class="summary-item" style="margin-top: 1rem;">
-                                            <strong>Wages:</strong> ₱${summary.wages.toFixed(2)}
-                                        </div>
-                                        <div class="summary-item">
-                                            <strong>GCash:</strong> ₱${(summary.gcash || 0).toFixed(2)}
-                                        </div>
-                                        
-                                        <div class="summary-item" style="margin-top: 1rem; font-weight: bold; font-size: 1.2rem; border-top: 2px solid #007bff; padding-top: 0.5rem; color: #007bff;">
-                                            <strong>GRAND TOTAL: ₱${summary.grand_total.toFixed(2)}</strong>
-                                        </div>
-                                    </div>
-                                </div>
-                            `;
-                            
-                            summaryContainer.innerHTML = summaryHTML;
-                            shiftSummarySection.style.display = 'block';
-                        } else {
-                            summaryContainer.innerHTML = '<p style="color: #666; font-style: italic;">No shift summary found for this date and shift.</p>';
-                            summaryDateShift.textContent = `${date} - ${shift === 'AM' ? '(5:00 AM - 5:00 PM)' : '(5:00 PM - 5:00 AM)'}`;
-                            shiftSummarySection.style.display = 'block';
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error fetching shift summary:', error);
-                        const shiftSummarySection = document.getElementById('shift-summary-section');
-                        const summaryContainer = document.getElementById('shift-summary-container');
-                        summaryContainer.innerHTML = '<p style="color: red;">Error loading shift summary. Please try again.</p>';
-                        shiftSummarySection.style.display = 'block';
-                    });
-            }
-
-            // Event listeners for shift buttons
-            btnAM.addEventListener('click', function () {
-                handleShiftSelection('AM');
-            });
-
-            btnPM.addEventListener('click', function () {
-                handleShiftSelection('PM');
-            });
-
-            // Initialize calendar on page load
-            generateCalendar();
-        });
-    </script>
-</body>
-
-</html>
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/summary.js') }}"></script>
+{% endblock %}

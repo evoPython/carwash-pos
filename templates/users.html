@@ -1,383 +1,112 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "base.html" %}
 
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>User Management - Carwash POS</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/tables.css') }}" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/modals.css') }}" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='js/tabulator/tabulator.min.css') }}" />
-</head>
+{% block title %}Users - Carwash POS{% endblock %}
 
-<body>
-    <header>
-        <div class="header-center">
-            <h1>Carwash POS</h1>
-        </div>
-        <div class="header-right">
-            <a href="{{ url_for('index') }}" class="btn">Back to Dashboard</a>
-            <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
-        </div>
-    </header>
+{% block content %}
+<div class="dashboard-header mb-24">
+    <h1>User Management</h1>
+    <p>Manage user accounts and permissions</p>
+</div>
 
-    <main>
-        <!-- Flash messages -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-        <div class="flash-messages">
-            {% for category, message in messages %}
-            <div class="flash-message flash-{{ category }}">
-                {{ message }}
+<div class="grid grid-cols-1">
+    <div class="card">
+        <div class="card-header">
+            <div class="flex justify-between items-center">
+                <h2>Users</h2>
+                <button id="addUserBtn" class="btn btn-primary">+ Add User</button>
             </div>
-            {% endfor %}
         </div>
-        {% endif %}
-        {% endwith %}
-
-        <section class="controls">
-            <div class="filter">
-                <h2>User Management</h2>
-                <button id="btn-add-user" class="btn-primary">Add New User</button>
-                <button id="btn-refresh-users" class="btn">Refresh</button>
+        <div class="card-body">
+            <div class="table-container">
+                <table class="table" id="usersTable">
+                    <thead>
+                        <tr>
+                            <th>Full Name</th>
+                            <th>Username</th>
+                            <th>Role</th>
+                            <th>Shift</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
             </div>
-        </section>
-
-        <section class="table-section">
-            <div id="users-table"></div>
-        </section>
-    </main>
-
-    <!-- Add/Edit User Modal -->
-    <div id="user-modal" class="modal">
-        <div class="modal-content">
-            <span id="user-modal-close" class="modal-close">&times;</span>
-            <h2 id="user-modal-title">Add New User</h2>
-            <form id="user-form">
-                <input type="hidden" id="user-id" name="user_id" />
-
-                <div class="form-row">
-                    <label>
-                        Username
-                        <input type="text" id="user-username" name="username" required minlength="3" maxlength="50" />
-                    </label>
-                    <label>
-                        Full Name
-                        <input type="text" id="user-full-name" name="full_name" required />
-                    </label>
-                </div>
-
-                <div class="form-row">
-                    <label>
-                        Password
-                        <input type="password" id="user-password" name="password" minlength="6" />
-                        <small>Leave blank to keep current password (when editing)</small>
-                    </label>
-                    <label>
-                        Role
-                        <select id="user-role" name="role" required onchange="toggleShiftField()">
-                            <option value="">Choose role</option>
-                            <option value="Incharge">Incharge - Daily operations</option>
-                            <option value="Admin">Admin - Full business access</option>
-                            <option value="Developer">Developer - System admin</option>
-                        </select>
-                    </label>
-                </div>
-
-                <div id="shift-field" class="form-row" style="display: none;">
-                    <label>
-                        Shift
-                        <select id="user-shift" name="shift">
-                            <option value="">Select shift</option>
-                            <option value="AM">AM (5:00 AM - 5:00 PM)</option>
-                            <option value="PM">PM (5:00 PM - 5:00 AM)</option>
-                        </select>
-                        <small>Required for Incharge role</small>
-                    </label>
-                </div>
-
-                <div class="form-row">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="user-active" name="is_active" checked />
-                        <span class="checkmark"></span>
-                        Active Account
-                    </label>
-                </div>
-
-                <button type="submit" class="btn-primary">Save User</button>
-            </form>
         </div>
     </div>
+</div>
 
-    <script src="{{ url_for('static', filename='js/tabulator/tabulator.min.js') }}"></script>
-    <script>
-        // User management functionality
-        let usersTable;
-        let isEditMode = false;
+<!-- Add/Edit User Modal -->
+<div id="userModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modalTitle">Add User</h3>
+            <span class="close" onclick="closeModal('userModal')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="userForm">
+                <input type="hidden" id="userId" name="userId">
 
-        // Initialize users table
-        function initUsersTable() {
-            usersTable = new Tabulator("#users-table", {
-                ajaxURL: "/api/users",
-                layout: "fitColumns",
-                pagination: "local",
-                paginationSize: 10,
-                columns: [
-                    {
-                        title: "ID",
-                        field: "id",
-                        width: 60,
-                        sorter: "number"
-                    },
-                    {
-                        title: "Username",
-                        field: "username",
-                        sorter: "string"
-                    },
-                    {
-                        title: "Full Name",
-                        field: "full_name",
-                        sorter: "string"
-                    },
-                    {
-                        title: "Role",
-                        field: "role",
-                        sorter: "string",
-                        formatter: function (cell) {
-                            const role = cell.getValue();
-                            const roleClass = role.toLowerCase();
-                            return `<span class="user-role ${roleClass}">${role}</span>`;
-                        }
-                    },
-                    {
-                        title: "Shift",
-                        field: "shift",
-                        sorter: "string",
-                        formatter: function (cell) {
-                            const shift = cell.getValue();
-                            return shift ? `<span class="shift-badge ${shift.toLowerCase()}">${shift}</span>` : '-';
-                        }
-                    },
-                    {
-                        title: "Status",
-                        field: "is_active",
-                        sorter: "boolean",
-                        formatter: function (cell) {
-                            return cell.getValue() ?
-                                '<span style="color: #28a745;">Active</span>' :
-                                '<span style="color: #dc3545;">Inactive</span>';
-                        }
-                    },
-                    {
-                        title: "Created",
-                        field: "created_at",
-                        sorter: "date",
-                        formatter: function (cell) {
-                            return new Date(cell.getValue()).toLocaleDateString();
-                        }
-                    },
-                    {
-                        title: "Actions",
-                        field: "actions",
-                        headerSort: false,
-                        formatter: function (cell) {
-                            const data = cell.getRow().getData();
-                            return `
-                                <button class="btn" onclick="editUser(${data.id})">Edit</button>
-                                <button class="btn" onclick="toggleUserStatus(${data.id}, ${data.is_active})" 
-                                        style="background: ${data.is_active ? '#dc3545' : '#28a745'}; color: white;">
-                                    ${data.is_active ? 'Deactivate' : 'Activate'}
-                                </button>
-                            `;
-                        }
-                    }
-                ]
-            });
-        }
+                <div class="form-group">
+                    <label for="fullName" class="form-label">Full Name</label>
+                    <input type="text" id="fullName" name="fullName" class="form-input" required>
+                </div>
 
-        // Modal functionality
-        const modal = document.getElementById('user-modal');
-        const modalClose = document.getElementById('user-modal-close');
-        const addUserBtn = document.getElementById('btn-add-user');
-        const refreshBtn = document.getElementById('btn-refresh-users');
-        const userForm = document.getElementById('user-form');
+                <div class="form-group">
+                    <label for="username" class="form-label">Username</label>
+                    <input type="text" id="username" name="username" class="form-input" required>
+                </div>
 
-        addUserBtn.addEventListener('click', () => {
-            openUserModal();
-        });
+                <div class="form-group">
+                    <label for="password" class="form-label">Password</label>
+                    <input type="password" id="password" name="password" class="form-input" required>
+                </div>
 
-        modalClose.addEventListener('click', () => {
-            closeUserModal();
-        });
+                <div class="form-group">
+                    <label for="role" class="form-label">Role</label>
+                    <select id="role" name="role" class="form-select" required>
+                        <option value="">Select Role</option>
+                        <option value="incharge">In Charge</option>
+                        <option value="admin">Admin</option>
+                        <option value="developer">Developer</option>
+                    </select>
+                </div>
 
-        refreshBtn.addEventListener('click', () => {
-            usersTable.replaceData();
-        });
+                <div class="form-group" id="shiftGroup" style="display: none;">
+                    <label for="shift" class="form-label">Shift</label>
+                    <select id="shift" name="shift" class="form-select">
+                        <option value="">Select Shift</option>
+                        <option value="AM">AM (5AM - 5PM)</option>
+                        <option value="PM">PM (5PM - 5AM)</option>
+                    </select>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('userModal')">Cancel</button>
+            <button type="submit" form="userForm" class="btn btn-primary">Save</button>
+        </div>
+    </div>
+</div>
 
-        window.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                closeUserModal();
-            }
-        });
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Confirm Delete</h3>
+            <span class="close" onclick="closeModal('deleteModal')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <p>Are you sure you want to delete this user? This action cannot be undone.</p>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('deleteModal')">Cancel</button>
+            <button type="button" class="btn btn-error" onclick="confirmDelete()">Delete</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
 
-        function openUserModal(userData = null) {
-            isEditMode = !!userData;
-            const title = document.getElementById('user-modal-title');
-            const passwordField = document.getElementById('user-password');
-
-            if (isEditMode) {
-                title.textContent = 'Edit User';
-                passwordField.required = false;
-                fillUserForm(userData);
-            } else {
-                title.textContent = 'Add New User';
-                passwordField.required = true;
-                clearUserForm();
-            }
-
-            modal.style.display = 'block';
-        }
-
-        function closeUserModal() {
-            modal.style.display = 'none';
-            clearUserForm();
-        }
-
-        function fillUserForm(userData) {
-            document.getElementById('user-id').value = userData.id;
-            document.getElementById('user-username').value = userData.username;
-            document.getElementById('user-full-name').value = userData.full_name;
-            document.getElementById('user-role').value = userData.role;
-            document.getElementById('user-shift').value = userData.shift || '';
-            document.getElementById('user-active').checked = userData.is_active;
-            document.getElementById('user-password').value = '';
-            toggleShiftField();
-        }
-
-        function clearUserForm() {
-            userForm.reset();
-            document.getElementById('user-id').value = '';
-            isEditMode = false;
-        }
-
-        // User form submission
-        userForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const formData = new FormData(userForm);
-            const userData = Object.fromEntries(formData.entries());
-            userData.is_active = document.getElementById('user-active').checked;
-
-            try {
-                const url = isEditMode ? '/api/users/update' : '/api/users/create';
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(userData)
-                });
-
-                const result = await response.json();
-
-                if (response.ok) {
-                    closeUserModal();
-                    usersTable.replaceData();
-                    showFlashMessage('success', result.message || 'User saved successfully');
-                } else {
-                    showFlashMessage('error', result.error || 'Failed to save user');
-                }
-            } catch (error) {
-                showFlashMessage('error', 'Network error occurred');
-            }
-        });
-
-        // User actions
-        async function editUser(userId) {
-            try {
-                const response = await fetch(`/api/users/${userId}`);
-                const userData = await response.json();
-
-                if (response.ok) {
-                    openUserModal(userData);
-                } else {
-                    showFlashMessage('error', 'Failed to load user data');
-                }
-            } catch (error) {
-                showFlashMessage('error', 'Network error occurred');
-            }
-        }
-
-        async function toggleUserStatus(userId, currentStatus) {
-            const action = currentStatus ? 'deactivate' : 'activate';
-
-            if (!confirm(`Are you sure you want to ${action} this user?`)) {
-                return;
-            }
-
-            try {
-                const response = await fetch(`/api/users/${userId}/${action}`, {
-                    method: 'POST'
-                });
-
-                const result = await response.json();
-
-                if (response.ok) {
-                    usersTable.replaceData();
-                    showFlashMessage('success', result.message);
-                } else {
-                    showFlashMessage('error', result.error);
-                }
-            } catch (error) {
-                showFlashMessage('error', 'Network error occurred');
-            }
-        }
-
-        // Flash message helper
-        function showFlashMessage(type, message) {
-            const flashContainer = document.querySelector('.flash-messages') || createFlashContainer();
-            const flashDiv = document.createElement('div');
-            flashDiv.className = `flash-message flash-${type}`;
-            flashDiv.textContent = message;
-
-            flashContainer.appendChild(flashDiv);
-
-            setTimeout(() => {
-                flashDiv.remove();
-            }, 5000);
-        }
-
-        function createFlashContainer() {
-            const container = document.createElement('div');
-            container.className = 'flash-messages';
-            document.querySelector('main').insertBefore(container, document.querySelector('.controls'));
-            return container;
-        }
-
-        // Toggle shift field based on role selection
-        function toggleShiftField() {
-            const roleSelect = document.getElementById('user-role');
-            const shiftField = document.getElementById('shift-field');
-            const shiftSelect = document.getElementById('user-shift');
-
-            if (roleSelect.value === 'Incharge') {
-                shiftField.style.display = 'block';
-                shiftSelect.required = true;
-            } else {
-                shiftField.style.display = 'none';
-                shiftSelect.required = false;
-                shiftSelect.value = '';
-            }
-        }
-
-        // Initialize table on page load
-        document.addEventListener('DOMContentLoaded', () => {
-            initUsersTable();
-        });
-    </script>
-</body>
-
-</html>
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/users.js') }}"></script>
+{% endblock %}

@@ -1,366 +1,167 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Database Management - Carwash POS</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/tables.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='js/tabulator/tabulator.min.css') }}">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #333;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .table-selector {
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        .table-selector select {
-            padding: 8px 12px;
-            font-size: 16px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        .table-actions {
-            margin-bottom: 20px;
-            text-align: right;
-        }
-        .table-actions button {
-            padding: 8px 16px;
-            margin-left: 10px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-        .table-actions .btn-add {
-            background-color: #4CAF50;
-            color: white;
-        }
-        .table-actions .btn-delete {
-            background-color: #f44336;
-            color: white;
-        }
-        .table-actions .btn-refresh {
-            background-color: #2196F3;
-            color: white;
-        }
-        .log-display {
-            margin-top: 30px;
-            padding: 15px;
-            background: #333;
-            color: #fff;
-            border-radius: 4px;
-            height: 200px;
-            overflow-y: auto;
-            font-family: monospace;
-            font-size: 14px;
-        }
-        .log-entry {
-            margin-bottom: 5px;
-            padding: 5px;
-            border-radius: 3px;
-        }
-        .log-entry.error {
-            background-color: #f44336;
-        }
-        .log-entry.success {
-            background-color: #4CAF50;
-        }
-        .log-entry.info {
-            background-color: #2196F3;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Database Management</h1>
+{% extends "base.html" %}
 
-        <div class="table-selector">
-            <label for="tableSelect">Select Table:</label>
-            <select id="tableSelect">
-                <option value="orders">Orders</option>
-                <option value="users">Users</option>
-                <option value="shift_summaries">Shift Summaries</option>
-            </select>
-        </div>
+{% block title %}Database Viewer{% endblock %}
 
-        <div class="table-actions">
-            <button id="addRowBtn" class="btn-add">Add Row</button>
-            <button id="deleteSelectedBtn" class="btn-delete">Delete Selected</button>
-            <button id="refreshBtn" class="btn-refresh">Refresh</button>
-        </div>
+{% block content %}
+<h1>Database Viewer</h1>
 
-        <div id="tableContainer"></div>
+<div class="database-controls">
+    <button id="refresh-tables" class="btn btn-primary">Refresh Tables</button>
+</div>
 
-        <div class="log-display" id="logDisplay">
-            <div class="log-entry info">System initialized</div>
-        </div>
-    </div>
+<div id="database-content">
+    <div id="tables-list" class="tables-list"></div>
+    <div id="table-data" class="table-data"></div>
+</div>
 
-    <script src="{{ url_for('static', filename='js/tabulator/tabulator.min.js') }}"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Initialize variables
-            let currentTable = 'orders';
-            let table = null;
-            const logDisplay = document.getElementById('logDisplay');
+{% endblock %}
 
-            // Function to add log entries
-            function addLog(message, type = 'info') {
-                const logEntry = document.createElement('div');
-                logEntry.className = `log-entry ${type}`;
-                logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-                logDisplay.appendChild(logEntry);
-                logDisplay.scrollTop = logDisplay.scrollHeight;
-            }
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const refreshButton = document.getElementById('refresh-tables');
+    const tablesList = document.getElementById('tables-list');
+    const tableData = document.getElementById('table-data');
 
-            // Function to load table data
-            function loadTableData() {
-                fetch(`/api/database/${currentTable}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            addLog(data.error, 'error');
-                            return;
-                        }
+    // Load tables on page load
+    loadTables();
 
-                        // Update table data
-                        table.setData(data);
+    // Refresh button click
+    refreshButton.addEventListener('click', loadTables);
 
-                        // Update column definitions based on data
-                        if (data.length > 0) {
-                            const columns = Object.keys(data[0]).map(key => {
-                                let editor = true;
-                                // Disable editing for primary keys and special fields
-                                if (key === 'id' || key === 'created_at' || key === 'timestamp') {
-                                    editor = false;
-                                }
-                                // For shift field in orders table, provide dropdown
-                                if (currentTable === 'orders' && key === 'shift') {
-                                    return {
-                                        title: key,
-                                        field: key,
-                                        editor: "select",
-                                        editorParams: {
-                                            values: {"AM": "AM", "PM": "PM"}
-                                        }
-                                    };
-                                }
-                                // For w_vac field in orders table, provide dropdown
-                                if (currentTable === 'orders' && key === 'w_vac') {
-                                    return {
-                                        title: key,
-                                        field: key,
-                                        editor: "select",
-                                        editorParams: {
-                                            values: {"Yes": "Yes", "No": "No"}
-                                        }
-                                    };
-                                }
-                                // For role field in users table, provide dropdown
-                                if (currentTable === 'users' && key === 'role') {
-                                    return {
-                                        title: key,
-                                        field: key,
-                                        editor: "select",
-                                        editorParams: {
-                                            values: {"Developer": "Developer", "Admin": "Admin", "Incharge": "Incharge"}
-                                        }
-                                    };
-                                }
-                                // For shift field in users table, provide dropdown
-                                if (currentTable === 'users' && key === 'shift') {
-                                    return {
-                                        title: key,
-                                        field: key,
-                                        editor: "select",
-                                        editorParams: {
-                                            values: {"AM": "AM", "PM": "PM", "": ""}
-                                        }
-                                    };
-                                }
-                                // For password field in users table, make it a password input
-                                if (currentTable === 'users' && key === 'password_hash') {
-                                    return {
-                                        title: key,
-                                        field: key,
-                                        editor: "input",
-                                        editorParams: {
-                                            type: "password"
-                                        }
-                                    };
-                                }
-                                return {
-                                    title: key,
-                                    field: key,
-                                    editor: editor
-                                };
-                            });
-                            table.setColumns(columns);
-                        }
-
-                        addLog(`Loaded ${data.length} rows from ${currentTable}`, 'success');
-                    })
-                    .catch(error => {
-                        addLog(`Error loading data: ${error.message}`, 'error');
-                    });
-            }
-
-            // Function to initialize the table
-            function initTable() {
-                table = new Tabulator("#tableContainer", {
-                    height: "400px",
-                    layout: "fitColumns",
-                    movableColumns: true,
-                    resizableRows: true,
-                    pagination: "local",
-                    paginationSize: 20,
-                    paginationSizeSelector: [10, 20, 50, 100],
-                    selectable: true, // Enable row selection
-                    columns: [],
-                    data: [],
-                    cellEdited: function(cell) {
-                        const rowData = cell.getRow().getData();
-                        fetch(`/api/database/${currentTable}/${rowData.id}`, {
-                            method: 'PUT',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify(rowData)
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.error) {
-                                addLog(data.error, 'error');
-                                // Revert changes if error
-                                loadTableData();
-                            } else {
-                                addLog(`Row ${rowData.id} updated successfully`, 'success');
-                            }
-                        })
-                        .catch(error => {
-                            addLog(`Error updating row: ${error.message}`, 'error');
-                            loadTableData();
-                        });
-                    },
-                });
-
-                loadTableData();
-            }
-
-            // Event listeners
-            document.getElementById('tableSelect').addEventListener('change', function() {
-                currentTable = this.value;
-                loadTableData();
-            });
-
-            document.getElementById('addRowBtn').addEventListener('click', function() {
-                // Create a new row with default values
-                const newRow = {};
-                const columns = table.getColumns();
-                columns.forEach(col => {
-                    const field = col.getField();
-                    // Set default values for required fields
-                    if (currentTable === 'orders') {
-                        if (field === 'shift') {
-                            newRow[field] = 'AM'; // Default shift
-                        } else if (field === 'w_vac') {
-                            newRow[field] = 'No'; // Default w_vac
-                        } else if (field === 'price' || field === 'less_40' || field === 'c_shares' || field === 'w_share' || field === 'sss') {
-                            newRow[field] = 0; // Default numeric values
-                        } else {
-                            newRow[field] = ''; // Empty string for other fields
-                        }
-                    } else if (currentTable === 'users') {
-                        if (field === 'role') {
-                            newRow[field] = 'Incharge'; // Default role
-                        } else if (field === 'is_active') {
-                            newRow[field] = 1; // Default active status
-                        } else {
-                            newRow[field] = ''; // Empty string for other fields
-                        }
-                    } else {
-                        newRow[field] = ''; // Empty string for other fields
-                    }
-                });
-
-                fetch(`/api/database/${currentTable}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(newRow)
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        addLog(data.error, 'error');
-                    } else {
-                        addLog(`New row added with ID ${data.id}`, 'success');
-                        loadTableData();
-                    }
-                })
-                .catch(error => {
-                    addLog(`Error adding row: ${error.message}`, 'error');
-                });
-            });
-
-            document.getElementById('deleteSelectedBtn').addEventListener('click', function() {
-                const selectedRows = table.getSelectedRows();
-                if (selectedRows.length === 0) {
-                    addLog('No rows selected for deletion', 'info');
-                    return;
+    function loadTables() {
+        fetch('/api/database/tables')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayTables(data.tables);
+                } else {
+                    alert('Error loading tables: ' + data.message);
                 }
-
-                const idsToDelete = selectedRows.map(row => row.getData().id);
-
-                fetch(`/api/database/${currentTable}/delete`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ ids: idsToDelete })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        addLog(data.error, 'error');
-                    } else {
-                        addLog(`Deleted ${data.deleted_count} rows`, 'success');
-                        loadTableData();
-                    }
-                })
-                .catch(error => {
-                    addLog(`Error deleting rows: ${error.message}`, 'error');
-                });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error loading tables');
             });
+    }
 
-            document.getElementById('refreshBtn').addEventListener('click', function() {
-                loadTableData();
-            });
+    function displayTables(tables) {
+        tablesList.innerHTML = '<h2>Tables</h2>';
+        const ul = document.createElement('ul');
 
-            // Initialize the table on page load
-            initTable();
+        tables.forEach(table => {
+            const li = document.createElement('li');
+            li.textContent = table;
+            li.style.cursor = 'pointer';
+            li.addEventListener('click', () => loadTableData(table));
+            ul.appendChild(li);
         });
-    </script>
-</body>
-</html>
+
+        tablesList.appendChild(ul);
+    }
+
+    function loadTableData(tableName) {
+        fetch(`/api/database/table/${tableName}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayTableData(tableName, data.rows);
+                } else {
+                    alert('Error loading table data: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error loading table data');
+            });
+    }
+
+    function displayTableData(tableName, rows) {
+        tableData.innerHTML = `<h2>Table: ${tableName}</h2>`;
+
+        if (rows.length === 0) {
+            tableData.innerHTML += '<p>No data found</p>';
+            return;
+        }
+
+        // Create table element
+        const table = document.createElement('table');
+        table.className = 'data-table';
+
+        // Create header
+        const thead = document.createElement('thead');
+        const headerRow = document.createElement('tr');
+
+        // Add delete column header
+        const deleteHeader = document.createElement('th');
+        deleteHeader.textContent = 'Delete';
+        headerRow.appendChild(deleteHeader);
+
+        // Add column headers from first row
+        Object.keys(rows[0]).forEach(key => {
+            const th = document.createElement('th');
+            th.textContent = key;
+            headerRow.appendChild(th);
+        });
+
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+
+        // Create body
+        const tbody = document.createElement('tbody');
+
+        rows.forEach(row => {
+            const tr = document.createElement('tr');
+
+            // Add delete button
+            const deleteCell = document.createElement('td');
+            const deleteButton = document.createElement('button');
+            deleteButton.textContent = 'Delete';
+            deleteButton.className = 'btn btn-danger btn-small';
+            deleteButton.addEventListener('click', () => deleteRow(tableName, row));
+            deleteCell.appendChild(deleteButton);
+            tr.appendChild(deleteCell);
+
+            // Add row data
+            Object.values(row).forEach(value => {
+                const td = document.createElement('td');
+                td.textContent = value;
+                tr.appendChild(td);
+            });
+
+            tbody.appendChild(tr);
+        });
+
+        table.appendChild(tbody);
+        tableData.appendChild(table);
+    }
+
+    function deleteRow(tableName, row) {
+        if (!confirm(`Are you sure you want to delete this row from ${tableName}?`)) {
+            return;
+        }
+
+        // Find primary key (assuming first column is primary key)
+        const primaryKey = Object.keys(row)[0];
+        const primaryValue = row[primaryKey];
+
+        fetch(`/api/database/table/${tableName}/row/${primaryValue}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Row deleted successfully');
+                loadTableData(tableName); // Refresh table data
+            } else {
+                alert('Error deleting row: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting row');
+        });
+    }
+});
+</script>
+{% endblock %}

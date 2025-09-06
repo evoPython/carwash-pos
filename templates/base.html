@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Carwash POS{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    {% if current_user.is_authenticated %}
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">6B Carwash POS</div>
+                <div class="user-info">
+                    <span class="user-name">{{ current_user.full_name }}</span>
+                    <span class="role-badge {{ current_user.role }}">{{ current_user.role }}</span>
+                    {% if current_user.role == 'incharge' %}
+                    <span class="shift-indicator {{ 'shift-active' if shift_active else 'shift-inactive' }}">
+                        {{ current_user.shift }} Shift
+                        {% if shift_active %}
+                        <span class="status-active">●</span>
+                        {% else %}
+                        <span class="status-inactive">●</span>
+                        {% endif %}
+                    </span>
+                    {% endif %}
+                    <a href="{{ url_for('logout') }}" class="btn btn-secondary btn-small">Logout</a>
+                </div>
+            </div>
+        </div>
+    </header>
+    {% endif %}
+
+    <main class="main-content">
+        <div class="container">
+            {% with messages = get_flashed_messages() %}
+            {% if messages %}
+            {% for message in messages %}
+            <div class="alert alert-info mb-16">{{ message }}</div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

@@ -1,4 +1,4 @@
-#!/home/evopy/repos/carwash-pos/venv/bin/python
+#!/home/evopy/repos/carwash-pos-revised/venv/bin/python
 # -*- coding: utf-8 -*-
 import re
 import sys

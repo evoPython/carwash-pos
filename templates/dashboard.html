@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Carwash POS{% endblock %}
+
+{% block content %}
+<div class="dashboard-header mb-24">
+    <h1>Dashboard</h1>
+    <p>Welcome back, {{ user.full_name }}! Current time: <span id="currentTime"></span></p>
+    {% if user.role == 'incharge' %}
+    <button id="manageVehiclesBtn" class="btn btn-secondary mt-16">Manage Vehicles</button>
+    {% endif %}
+</div>
+
+<div class="grid grid-cols-1">
+    <!-- Orders Section -->
+    <div class="card">
+        <div class="card-header">
+            <div class="flex justify-between items-center">
+                <h2>Today's Orders ({{ user.shift }} Shift)</h2>
+                {% if shift_active %}
+                <button id="newOrderBtn" class="btn btn-primary">+ New Order</button>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table class="table" id="ordersTable">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Plate Number</th>
+                            <th>Vehicle</th>
+                            <th>Service</th>
+                            <th>Base Price</th>
+                            <th>Addons</th>
+                            <th>W/Vac</th>
+                            <th>6B Shares</th>
+                            <th>Washer Shares</th>
+                            <th>SSS</th>
+                            <th>VAC</th>
+                            <th>Less 40</th>
+                            <th>Washer Name</th>
+                            <th>Incharge Name</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Section (only show if shift active) -->
+    {% if shift_active %}
+    <div class="summary-container">
+        <div class="summary-section">
+            <h3>Sales Summary</h3>
+            <div class="summary-item">
+                <span>Total Gross Sales</span>
+                <span id="totalGrossSales">₱0.00</span>
+            </div>
+            <div class="summary-item">
+                <span>40x</span>
+                <span id="fortyX">₱0.00</span>
+            </div>
+            <div class="summary-item">
+                <span>Total Addons Sales</span>
+                <span id="totalAddonsSales">₱0.00</span>
+            </div>
+            <div class="addon-details">
+                <h4>Addon Details</h4>
+                <ul id="addonDetailsList">
+                    <!-- Addon details will be populated here -->
+                </ul>
+            </div>
+        </div>
+
+        <div class="summary-section">
+            <h3>Other Income</h3>
+            <button id="addOtherIncomeBtn" class="btn btn-secondary btn-small mb-16">+ Add Other Income</button>
+            <table class="table mb-16">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Amount</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="otherIncomeList">
+                    <!-- Other income rows will be added here -->
+                </tbody>
+            </table>
+            <div class="summary-item">
+                <span>Total Other Income</span>
+                <span id="totalOtherIncome">₱0.00</span>
+            </div>
+
+            <h3 class="mt-24">Expenses</h3>
+            <button id="addExpenseBtn" class="btn btn-secondary btn-small mb-16">+ Add Expense</button>
+            <table class="table mb-16">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Amount</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="expensesList">
+                    <!-- Expense rows will be added here -->
+                </tbody>
+            </table>
+            <div class="summary-item">
+                <span>Wages</span>
+                <span>₱400.00</span>
+            </div>
+            <div class="summary-item">
+                <span>GCash</span>
+                <input type="number" id="gcashAmount" class="form-input" style="width: 80px; text-align: right;"
+                    placeholder="0">
+            </div>
+            <div class="summary-item">
+                <span>POS Payment</span>
+                <span id="posPaymentAmount">₱0.00</span>
+            </div>
+            <div class="summary-item">
+                <span>VAC</span>
+                <span id="vacTotal">₱0.00</span>
+            </div>
+            <div class="summary-item">
+                <strong>Grand Total</strong>
+                <strong id="grandTotal">₱0.00</strong>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- New Order Modal -->
+<div id="newOrderModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>New Order</h3>
+            <span class="close" onclick="closeModal('newOrderModal')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="newOrderForm">
+                <div class="form-group">
+                    <label for="plateNumber" class="form-label">Plate Number</label>
+                    <input type="text" id="plateNumber" name="plateNumber" class="form-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="vehicleType" class="form-label">Vehicle Type</label>
+                    <select id="vehicleType" name="vehicleType" class="form-select" required>
+                        <option value="">Select Vehicle Type</option>
+                    </select>
+                </div>
+
+                <div id="servicesSection" class="hidden">
+                    <div class="form-group">
+                        <label class="form-label">Base Service</label>
+                        <div id="baseServices"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Addons</label>
+                        <div id="addonsList"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">W/Vac</label>
+                        <input type="checkbox" id="wVac" name="wVac" class="form-checkbox">
+                        <span>With Vacuum</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-16">
+                        <div class="form-group">
+                            <label for="basePrice" class="form-label">Base Price</label>
+                            <input type="number" id="basePrice" class="form-input" readonly>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="less40" class="form-label">Less 40</label>
+                            <input type="number" id="less40" value="40" class="form-input" readonly>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="sixbShares" class="form-label">6B Shares</label>
+                            <input type="number" id="sixbShares" class="form-input" readonly>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="washerShares" class="form-label">Washer Shares</label>
+                            <input type="number" id="washerShares" class="form-input" readonly>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="sss" class="form-label">SSS</label>
+                            <input type="number" id="sss" value="2" class="form-input" readonly>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="washerName" class="form-label">Washer Name</label>
+                            <input type="text" id="washerName" name="washerName" class="form-input" required>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('newOrderModal')">Cancel</button>
+            <button type="submit" form="newOrderForm" class="btn btn-primary">Submit Order</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Set the user's shift in the window object for JavaScript to use
+    window.currentUserShift = "{{ current_user.shift }}";
+</script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}
