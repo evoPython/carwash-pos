@@ -9,7 +9,11 @@
             <h1>Vehicle Management</h1>
             <p>Manage vehicle types, services, and pricing</p>
         </div>
-        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+        {% if current_user.role in ['admin', 'developer'] %}
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+        {% else %}
+            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+        {% endif %}
     </div>
 </div>
 
