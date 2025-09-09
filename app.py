@@ -90,33 +90,42 @@ def serialize_doc_for_api(doc: dict) -> dict:
 
 # ---------- User model & loader ----------
 class User(UserMixin):
-    def __init__(self, id, username, full_name, role, shift=None):
-        # id here is the integer 'id' field (keeps same interface as original)
+    def __init__(self, id, username, full_name, role, shift=None, created_at=None):
         self.id = id
         self.username = username
         self.full_name = full_name
         self.role = role
         self.shift = shift
+        self.created_at = created_at
 
 
 @login_manager.user_loader
 def load_user(user_id):
     """
-    Try to load by integer 'id' (legacy), fallback to Mongo ObjectId.
-    This keeps compatibility with endpoints that use integer user ids.
+    Load a user for Flask-Login.
+
+    Behavior:
+    - First attempts to treat `user_id` as an integer 'id' field (legacy SQLite compatibility).
+    - If not found, falls back to treating `user_id` as a MongoDB ObjectId string.
+    - Normalizes `created_at` to an ISO string when possible and passes it into the User model.
+
+    Returns:
+        User instance or None
     """
-    if user_id is None:
+    if not user_id:
         return None
 
-    # Try integer id (stringified) first
+    user_doc = None
+
+    # Try integer id first (legacy behavior)
     try:
         uid_int = int(user_id)
         user_doc = users_col.find_one({"id": uid_int})
     except Exception:
         user_doc = None
 
+    # Fallback: try ObjectId lookup
     if not user_doc:
-        # Fallback: maybe user_id is ObjectId string
         try:
             user_doc = users_col.find_one({"_id": ObjectId(user_id)})
         except Exception:
@@ -125,14 +134,23 @@ def load_user(user_id):
     if not user_doc:
         return None
 
+    # Normalize created_at: if it's a datetime, convert to ISO string; otherwise pass through (could be ISO string)
+    created_at = user_doc.get("created_at")
+    try:
+        if isinstance(created_at, datetime):
+            created_at = created_at.isoformat()
+    except Exception:
+        # If datetime is not imported or any other error, leave created_at as-is
+        pass
+
     return User(
         id=user_doc.get("id") or str(user_doc.get("_id")),
         username=user_doc.get("username"),
         full_name=user_doc.get("full_name"),
         role=user_doc.get("role"),
-        shift=user_doc.get("shift")
+        shift=user_doc.get("shift"),
+        created_at=created_at
     )
-
 
 # ---------- Decorator ----------
 def role_required(*roles):
@@ -534,8 +552,10 @@ def api_users():
             "username": username,
             "password_hash": password_hash,
             "role": role,
-            "shift": shift
+            "shift": shift,
+            "created_at": datetime.now().isoformat()
         })
+
         return jsonify({"success": True})
 
     # GET all users
