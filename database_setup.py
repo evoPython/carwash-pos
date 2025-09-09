@@ -1,96 +1,58 @@
-import sqlite3
+# database_setup.py
+from pymongo import MongoClient, ASCENDING
 from werkzeug.security import generate_password_hash
 import json
 import os
+from datetime import datetime
 
-DB_FILE = "carwash_pos.db"
+# Configuration: change via env if needed
+MONGO_URI = os.environ.get(
+    "MONGO_URI",
+    "mongodb+srv://carwashDeveloper:evopy08200280ypove@carwashcluster.fnye3pz.mongodb.net/?retryWrites=true&w=majority&appName=carwashCluster"
+)
+MONGO_DBNAME = os.environ.get("MONGO_DBNAME", "carwash")
 
 def setup_database():
-    """Create database and tables"""
-    # Remove old db if resetting
-    if os.path.exists(DB_FILE):
-        os.remove(DB_FILE)
+    client = MongoClient(MONGO_URI)
+    db = client[MONGO_DBNAME]
 
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
+    # Drop existing collections to mirror removing the SQLite file.
+    # WARNING: This deletes existing data in these collections.
+    for col in ["users", "vehicles", "orders", "shift_summaries", "counters"]:
+        if col in db.list_collection_names():
+            db.drop_collection(col)
 
-    # Create users table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            full_name TEXT NOT NULL,
-            password_hash TEXT NOT NULL,
-            role TEXT CHECK(role IN ('incharge', 'admin', 'developer')) NOT NULL,
-            username TEXT UNIQUE NOT NULL,
-            shift TEXT CHECK(shift IN ('AM', 'PM'))
-        )
-    """)
+    users_col = db["users"]
+    vehicles_col = db["vehicles"]
+    orders_col = db["orders"]
+    summaries_col = db["shift_summaries"]
+    counters_col = db["counters"]
 
-    # Create orders table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS orders (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            incharge_name TEXT NOT NULL,
-            washer_name TEXT DEFAULT '',
-            vehicle_type TEXT NOT NULL,
-            base_service TEXT NOT NULL,
-            base_price REAL NOT NULL,
-            plate_number TEXT NOT NULL,
-            w_vac TEXT CHECK(w_vac IN ('yes', 'no')) NOT NULL,
-            addons TEXT,
-            washer_shares REAL NOT NULL,
-            sixb_shares REAL NOT NULL,
-            sss REAL DEFAULT 2,
-            vac REAL DEFAULT 0,
-            less_40 REAL DEFAULT 40,
-            shift TEXT CHECK(shift IN ('AM', 'PM')) NOT NULL,
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+    # Create indexes similar to SQLite constraints.
+    users_col.create_index([("username", ASCENDING)], unique=True)
+    users_col.create_index([("id", ASCENDING)], unique=True)
+    vehicles_col.create_index([("vehicle_name", ASCENDING)], unique=True)
+    vehicles_col.create_index([("id", ASCENDING)], unique=True)
+    summaries_col.create_index([("incharge_name", ASCENDING), ("date", ASCENDING), ("shift", ASCENDING)], unique=True)
+    summaries_col.create_index([("id", ASCENDING)], unique=True)
+    orders_col.create_index([("id", ASCENDING)], unique=True)
+    vehicles_col.create_index([("id", ASCENDING)], unique=True)
 
-    # Create shift_summaries table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS shift_summaries (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            incharge_name TEXT NOT NULL,
-            date DATE NOT NULL,
-            shift TEXT CHECK(shift IN ('AM', 'PM')) NOT NULL,
-            addons TEXT,
-            other_income TEXT,
-            expenses TEXT,
-            forty_x REAL DEFAULT 0,
-            wages REAL DEFAULT 400,
-            total_gross_sales REAL DEFAULT 0,
-            total_sss REAL DEFAULT 0,
-            total_vac REAL DEFAULT 0,
-            total_addons REAL DEFAULT 0,
-            total_other_income REAL DEFAULT 0,
-            gcash REAL DEFAULT 0,
-            pos_payment REAL DEFAULT 0,
-            grand_total REAL DEFAULT 0,
-            UNIQUE(incharge_name, date, shift)
-        )
-    """)
+    # Insert default developer user (mimic INSERT OR IGNORE)
+    dev_pass_hash = generate_password_hash("dev123")
+    # In SQLite, id would be 1 for first insert; we preserve that using counters below.
+    dev_user = {
+        "id": 1,
+        "created_at": datetime.utcnow().isoformat(),
+        "full_name": "Administrator",
+        "password_hash": dev_pass_hash,
+        "role": "developer",
+        "username": "developer",
+        "shift": None
+    }
+    users_col.insert_one(dev_user)
 
-    # Create vehicles table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS vehicles (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            vehicle_name TEXT UNIQUE NOT NULL,
-            bases TEXT NOT NULL,
-            addons TEXT NOT NULL
-        )
-    """)
-
-    # Insert default developer user
-    temp_password = generate_password_hash('dev123')
-    cursor.execute("""
-        INSERT OR IGNORE INTO users (full_name, password_hash, role, username)
-        VALUES ('Administrator', ?, 'developer', 'developer')
-    """, (temp_password,))
-
-    # Insert sample vehicles
+    # Vehicles data (same values as your SQLite script)
     car_bases = {
         "Bodywash": {"price": 200, "vac": False},
         "Bodywash with Vacuum": {"price": 250, "vac": True},
@@ -104,11 +66,6 @@ def setup_database():
         "Engine Wash": 120
     }
 
-    cursor.execute("""
-        INSERT OR IGNORE INTO vehicles (vehicle_name, bases, addons)
-        VALUES ('Car', ?, ?)
-    """, (json.dumps(car_bases), json.dumps(car_addons)))
-
     suv_bases = {
         "Bodywash": {"price": 250, "vac": False},
         "Bodywash with Vacuum": {"price": 300, "vac": True},
@@ -116,14 +73,43 @@ def setup_database():
         "Spray Only": {"price": 120, "vac": False}
     }
 
-    cursor.execute("""
-        INSERT OR IGNORE INTO vehicles (vehicle_name, bases, addons)
-        VALUES ('SUV', ?, ?)
-    """, (json.dumps(suv_bases), json.dumps(car_addons)))
+    # Store bases/addons as JSON strings to match original SQLite storage
+    vehicles_col.insert_one({
+        "id": 1,
+        "vehicle_name": "Car",
+        "bases": json.dumps(car_bases),
+        "addons": json.dumps(car_addons)
+    })
 
-    conn.commit()
-    conn.close()
-    print("SQLite database setup completed successfully!")
+    vehicles_col.insert_one({
+        "id": 2,
+        "vehicle_name": "SUV",
+        "bases": json.dumps(suv_bases),
+        "addons": json.dumps(car_addons)
+    })
 
-if __name__ == '__main__':
+    # No orders or summaries inserted initially (empty collections)
+    # Set up counters (auto-increment) so new inserts get appropriate next ids
+    # counters collection documents will be like: {"_id": "users", "seq": <n>}
+    # We set seq to the current maximum id value so next id = seq + 1.
+
+    counters_col.insert_many([
+        {"_id": "users", "seq": 1},           # one user inserted -> next id will be 2
+        {"_id": "vehicles", "seq": 2},        # two vehicles inserted -> next id will be 3
+        {"_id": "orders", "seq": 0},          # none yet -> next id will be 1
+        {"_id": "shift_summaries", "seq": 0}  # none yet -> next id will be 1
+    ])
+
+    # Print summary
+    print("MongoDB database setup completed successfully!")
+    print(f"Database: {MONGO_DBNAME}")
+    print("Inserted:")
+    print(" - users: 1 (developer)")
+    print(" - vehicles: 2 (Car, SUV)")
+    print("Counters initialised: users=1, vehicles=2, orders=0, shift_summaries=0")
+
+    client.close()
+
+
+if __name__ == "__main__":
     setup_database()
