@@ -757,3 +757,44 @@ ul li ul li {
 .calendar-cell:active {
     transform: scale(0.95);
 }
+
+/* Tab Navigation */
+.tab-navigation {
+    display: flex;
+    border-bottom: 1px solid var(--neutral-200);
+    margin-bottom: 24px;
+}
+
+.tab-button {
+    padding: 12px 24px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--neutral-500);
+    transition: all 0.2s ease;
+}
+
+.tab-button.active {
+    border-bottom-color: var(--primary);
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.tab-button:hover {
+    color: var(--neutral-700);
+}
+
+.tab-content {
+    margin-top: 24px;
+}
+
+.tab-pane {
+    display: none;
+}
+
+.tab-pane.active {
+    display: block;
+}

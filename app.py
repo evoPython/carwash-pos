@@ -39,7 +39,6 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "login"
 
-
 # ---------- Helpers ----------
 def get_next_sequence(name: str) -> int:
     """Auto-increment sequence (like SQL autoincrement). Returns next int."""
@@ -57,12 +56,10 @@ def get_next_sequence(name: str) -> int:
         res = counters_col.find_one({"_id": name})
     return int(res["seq"])
 
-
 def iso(dt):
     if isinstance(dt, datetime):
         return dt.isoformat()
     return dt
-
 
 def safe_json_load(s, default):
     if s is None:
@@ -73,7 +70,6 @@ def safe_json_load(s, default):
         return json.loads(s)
     except Exception:
         return default
-
 
 def serialize_doc_for_api(doc: dict) -> dict:
     """Return a JSON-serializable dict similar to original sqlite row dict."""
@@ -87,7 +83,6 @@ def serialize_doc_for_api(doc: dict) -> dict:
             out[k] = v
     return out
 
-
 # ---------- User model & loader ----------
 class User(UserMixin):
     def __init__(self, id, username, full_name, role, shift=None, created_at=None):
@@ -97,7 +92,6 @@ class User(UserMixin):
         self.role = role
         self.shift = shift
         self.created_at = created_at
-
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -166,7 +160,6 @@ def role_required(*roles):
         return decorated_function
     return decorator
 
-
 # ---------- Shift helpers ----------
 def get_current_shift():
     now = datetime.now().time()
@@ -175,17 +168,14 @@ def get_current_shift():
     else:
         return "PM"
 
-
 def get_shift_date():
     now = datetime.now()
     if get_current_shift() == "PM" and now.time() < time(5, 0):
         return (now - timedelta(days=1)).date()
     return now.date()
 
-
 def is_shift_active(user_shift):
     return user_shift == get_current_shift()
-
 
 # ---------- Business logic ----------
 def calculate_shares(base_price, addons, vehicle_data):
@@ -217,7 +207,6 @@ def calculate_shares(base_price, addons, vehicle_data):
 
     return {"sixb_shares": sixb_base + sixb_addons, "washer_shares": washer_base + washer_addons}
 
-
 # ---------- Routes (kept signatures & behavior) ----------
 @app.route("/")
 def index():
@@ -227,7 +216,6 @@ def index():
         else:
             return redirect(url_for("admin_dashboard"))
     return redirect(url_for("login"))
-
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -254,13 +242,11 @@ def login():
 
     return render_template("login.html")
 
-
 @app.route("/logout")
 @login_required
 def logout():
     logout_user()
     return redirect(url_for("login"))
-
 
 @app.route("/dashboard")
 @login_required
@@ -269,13 +255,11 @@ def dashboard():
     shift_active = is_shift_active(current_user.shift)
     return render_template("dashboard.html", user=current_user, shift_active=shift_active, current_shift=current_user.shift)
 
-
 @app.route("/admin_dashboard")
 @login_required
 @role_required("admin", "developer")
 def admin_dashboard():
     return render_template("admin_dashboard.html", user=current_user)
-
 
 @app.route("/summary")
 @login_required
@@ -283,19 +267,16 @@ def admin_dashboard():
 def summary():
     return render_template("summary.html", user=current_user)
 
-
 @app.route("/users")
 @login_required
 @role_required("admin", "developer")
 def users():
     return render_template("users.html", user=current_user)
 
-
 @app.route("/vehicles")
 @login_required
 def vehicles():
     return render_template("vehicles.html", user=current_user)
-
 
 # --- Orders API (POST stores same shapes as old SQLite; GET returns parsed shapes like original) ---
 @app.route("/api/orders", methods=["GET", "POST"])
@@ -373,7 +354,6 @@ def api_orders():
         orders.append(row)
 
     return jsonify(orders)
-
 
 # --- Update shift summary (keeps same stored shapes: JSON strings in db; API returns same format as original) ---
 @app.route("/api/update_summary", methods=["POST"])
@@ -462,7 +442,6 @@ def api_update_summary():
         app.logger.exception("Error updating shift summary")
         return jsonify({"success": False, "message": str(e)})
 
-
 # --- Vehicles API (store vehicles similarly to old schema: bases JSON string? original stored bases JSON string)
 @app.route("/api/vehicles", methods=["GET", "POST", "PUT"])
 @login_required
@@ -510,7 +489,6 @@ def api_vehicles():
         out.append(row)
     return jsonify(out)
 
-
 # --- Shift summary retrieval (returns parsed fields like the original) ---
 @app.route("/api/shift_summary/<date>/<shift>")
 @login_required
@@ -523,7 +501,6 @@ def api_shift_summary(date, shift):
     row["expenses"] = safe_json_load(row.get("expenses"), [])
     row["other_income"] = safe_json_load(row.get("other_income"), [])
     return jsonify(row)
-
 
 # --- Users endpoints (keep integer id interface) ---
 @app.route("/api/users", methods=["GET", "POST"])
@@ -565,7 +542,6 @@ def api_users():
         row = serialize_doc_for_api(doc)
         out.append(row)
     return jsonify(out)
-
 
 @app.route("/api/users/<int:user_id>", methods=["PUT", "DELETE"])
 @login_required
@@ -616,14 +592,12 @@ def api_user(user_id):
     users_col.delete_one({"id": target["id"]})
     return jsonify({"success": True})
 
-
-# --- DB inspector / convenience endpoints similar to original --- 
+# --- DB inspector / convenience endpoints similar to original ---
 @app.route("/database")
 @login_required
 @role_required("admin", "developer")
 def database():
     return render_template("database.html", user=current_user)
-
 
 @app.route("/api/database/tables")
 @login_required
@@ -636,7 +610,6 @@ def api_database_tables():
     except Exception as e:
         app.logger.exception("Error listing collections")
         return jsonify({"success": False, "message": str(e)})
-
 
 @app.route("/api/database/table/<table_name>")
 @login_required
@@ -651,7 +624,6 @@ def api_database_table(table_name):
     except Exception as e:
         app.logger.exception("Error fetching collection data")
         return jsonify({"success": False, "message": str(e)})
-
 
 @app.route("/api/database/table/<table_name>/row/<int:row_id>", methods=["DELETE"])
 @login_required
@@ -677,6 +649,83 @@ def api_database_delete_row(table_name, row_id):
         app.logger.exception("Error deleting row")
         return jsonify({"success": False, "message": str(e)})
 
+# --- Monthly Sales API ---
+@app.route("/api/monthly_sales", methods=["GET"])
+@login_required
+@role_required("admin", "developer")
+def api_monthly_sales():
+    month = int(request.args.get("month"))
+    year = int(request.args.get("year"))
+
+    # Get all shift summaries for the specified month and year
+    start_date = f"{year}-{str(month).zfill(2)}-01"
+    end_date = f"{year}-{str(month).zfill(2)}-31"
+
+    pipeline = [
+        {
+            "$match": {
+                "date": {"$gte": start_date, "$lte": end_date}
+            }
+        },
+        {
+            "$group": {
+                "_id": "$date",
+                "total": {"$sum": "$grand_total"}
+            }
+        },
+        {
+            "$sort": {"_id": 1}
+        }
+    ]
+
+    cursor = summaries_col.aggregate(pipeline)
+    results = []
+    for doc in cursor:
+        results.append({
+            "date": doc["_id"],
+            "amount": doc["total"]
+        })
+
+    return jsonify(results)
+
+# --- Yearly Sales API ---
+@app.route("/api/yearly_sales", methods=["GET"])
+@login_required
+@role_required("admin", "developer")
+def api_yearly_sales():
+    year = int(request.args.get("year"))
+
+    # Get all shift summaries for the specified year
+    start_date = f"{year}-01-01"
+    end_date = f"{year}-12-31"
+
+    pipeline = [
+        {
+            "$match": {
+                "date": {"$gte": start_date, "$lte": end_date}
+            }
+        },
+        {
+            "$group": {
+                "_id": {"$substr": ["$date", 0, 7]},  # Group by year-month
+                "total": {"$sum": "$grand_total"}
+            }
+        },
+        {
+            "$sort": {"_id": 1}
+        }
+    ]
+
+    cursor = summaries_col.aggregate(pipeline)
+    results = []
+    for doc in cursor:
+        month_name = datetime.strptime(doc["_id"], "%Y-%m").strftime("%B")
+        results.append({
+            "month": month_name,
+            "amount": doc["total"]
+        })
+
+    return jsonify(results)
 
 # --- Startup: create useful indexes if absent ---
 def ensure_indexes():
@@ -690,7 +739,6 @@ def ensure_indexes():
         summaries_col.create_index([("incharge_name", ASCENDING), ("date", ASCENDING), ("shift", ASCENDING)], unique=True)
     except Exception:
         app.logger.warning("Index creation failed or already exists.")
-
 
 if __name__ == "__main__":
     ensure_indexes()

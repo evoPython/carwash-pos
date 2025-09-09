@@ -199,8 +199,11 @@ function updateOtherIncomeTable(otherIncome, summaryData) {
     }
 
     // Update total other income display
-    document.getElementById('totalOtherIncomeDisplay').textContent = `₱${totalOtherIncome.toFixed(2)}`;
-    document.getElementById('totalOtherIncomeSummary').textContent = `₱${totalOtherIncome.toFixed(2)}`;
+    const totalOtherIncomeDisplay = document.getElementById('totalOtherIncomeDisplay');
+    const totalOtherIncomeSummary = document.getElementById('totalOtherIncomeSummary');
+
+    if (totalOtherIncomeDisplay) totalOtherIncomeDisplay.textContent = `₱${totalOtherIncome.toFixed(2)}`;
+    if (totalOtherIncomeSummary) totalOtherIncomeSummary.textContent = `₱${totalOtherIncome.toFixed(2)}`;
 
     return totalOtherIncome;
 }
@@ -327,6 +330,179 @@ function generateCalendar(month, year) {
     calendar.appendChild(grid);
 }
 
+// Tab switching functionality
+function initializeTabs() {
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabPanes = document.querySelectorAll('.tab-pane');
+
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const tab = button.getAttribute('data-tab');
+
+            // Deactivate all buttons and panes
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            tabPanes.forEach(pane => pane.classList.remove('active'));
+
+            // Activate clicked button and corresponding pane
+            button.classList.add('active');
+            document.getElementById(`${tab}Tab`).classList.add('active');
+        });
+    });
+}
+
+// Initialize monthly sales tab
+function initializeMonthlySales() {
+    const monthSelect = document.getElementById('monthlyMonthSelect');
+    const yearSelect = document.getElementById('monthlyYearSelect');
+    const loadButton = document.getElementById('loadMonthlySales');
+
+    // Populate year selector
+    const currentYear = new Date().getFullYear();
+    const years = [currentYear - 1, currentYear, currentYear + 1];
+
+    years.forEach(year => {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        yearSelect.appendChild(option);
+    });
+
+    // Set to current month and year
+    const now = new Date();
+    monthSelect.value = now.getMonth() + 1;
+    yearSelect.value = now.getFullYear();
+
+    // Load sales button click
+    loadButton.addEventListener('click', async () => {
+        const month = parseInt(monthSelect.value);
+        const year = parseInt(yearSelect.value);
+
+        // Update display
+        const monthName = monthSelect.options[monthSelect.selectedIndex].text;
+        document.getElementById('monthlyMonthDisplay').textContent = `${monthName} ${year}`;
+
+        // Load sales data
+        await loadMonthlySales(month, year);
+    });
+}
+
+// Load monthly sales data
+async function loadMonthlySales(month, year) {
+    try {
+        const response = await fetch(`/api/monthly_sales?month=${month}&year=${year}`);
+        const salesData = await response.json();
+
+        const tbody = document.querySelector('#monthlySalesTable tbody');
+        tbody.innerHTML = '';
+
+        let total = 0;
+
+        // Get all days in the month
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const monthSales = {};
+
+        // Initialize all days with 0
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            monthSales[dateStr] = 0;
+        }
+
+        // Populate with actual sales data
+        salesData.forEach(day => {
+            monthSales[day.date] = Number(day.amount || 0);
+        });
+
+        // Display all days in the month
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const amount = monthSales[dateStr];
+            total += amount;
+
+            const row = document.createElement('tr');
+
+            // Format date as "Month Day" (e.g., "September 15")
+            const date = new Date(dateStr);
+            const formattedDate = date.toLocaleDateString('en-US', {
+                month: 'long',
+                day: 'numeric'
+            });
+
+            row.innerHTML = `
+                <td>${formattedDate}</td>
+                <td>₱${amount.toFixed(2)}</td>
+            `;
+            tbody.appendChild(row);
+        }
+
+        // Update total
+        document.getElementById('monthlyTotal').textContent = `₱${total.toFixed(2)}`;
+    } catch (error) {
+        console.error('Error loading monthly sales:', error);
+    }
+}
+
+// Initialize yearly sales tab
+function initializeYearlySales() {
+    const yearSelect = document.getElementById('yearlyYearSelect');
+    const loadButton = document.getElementById('loadYearlySales');
+
+    // Populate year selector
+    const currentYear = new Date().getFullYear();
+    const years = [currentYear - 1, currentYear, currentYear + 1];
+
+    years.forEach(year => {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        yearSelect.appendChild(option);
+    });
+
+    // Set to current year
+    yearSelect.value = currentYear;
+
+    // Load sales button click
+    loadButton.addEventListener('click', async () => {
+        const year = parseInt(yearSelect.value);
+
+        // Update display
+        document.getElementById('yearlyYearDisplay').textContent = year;
+
+        // Load sales data
+        await loadYearlySales(year);
+    });
+}
+
+// Load yearly sales data
+async function loadYearlySales(year) {
+    try {
+        const response = await fetch(`/api/yearly_sales?year=${year}`);
+        const salesData = await response.json();
+
+        const tbody = document.querySelector('#yearlySalesTable tbody');
+        tbody.innerHTML = '';
+
+        let total = 0;
+
+        // Populate table with sales data
+        salesData.forEach(month => {
+            const row = document.createElement('tr');
+            const amount = Number(month.amount || 0);
+            total += amount;
+
+            row.innerHTML = `
+                <td>${month.month}</td>
+                <td>₱${amount.toFixed(2)}</td>
+            `;
+            tbody.appendChild(row);
+        });
+
+        // Update total
+        document.getElementById('yearlyTotal').textContent = `₱${total.toFixed(2)}`;
+    } catch (error) {
+        console.error('Error loading yearly sales:', error);
+    }
+}
+
 // Event listeners
 document.addEventListener('DOMContentLoaded', function () {
     // Load initial data
@@ -335,18 +511,14 @@ document.addEventListener('DOMContentLoaded', function () {
     // Initialize calendar
     initializeCalendar();
 
-    // Modal close on outside click
-    window.addEventListener('click', function (event) {
-        if (event.target.classList.contains('modal')) {
-            event.target.classList.remove('show');
-        }
-    });
+    // Initialize tabs
+    initializeTabs();
 
-    // Load initial data
-    loadVehicles();
+    // Initialize monthly sales tab
+    initializeMonthlySales();
 
-    // Initialize calendar
-    initializeCalendar();
+    // Initialize yearly sales tab
+    initializeYearlySales();
 
     // Modal close on outside click
     window.addEventListener('click', function (event) {

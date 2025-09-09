@@ -13,148 +13,244 @@
     </div>
 </div>
 
-<div class="grid grid-cols-1">
-    <div class="card">
-        <div class="card-header">
-            <div class="flex justify-between items-center">
-                <h2>Select Date and Shift</h2>
-                <div class="flex gap-16 items-center">
-                    <select id="monthSelect" class="form-select">
-                        <!-- Will be populated by JavaScript -->
-                    </select>
-                    <select id="yearSelect" class="form-select">
-                        <!-- Will be populated by JavaScript -->
-                    </select>
+<!-- Tab Navigation -->
+<div class="mb-24">
+    <div class="tab-navigation">
+        <button class="tab-button active" data-tab="calendar">Calendar View</button>
+        <button class="tab-button" data-tab="monthly">Monthly Sales</button>
+        <button class="tab-button" data-tab="yearly">Yearly Sales</button>
+    </div>
+</div>
+
+<!-- Tab Content -->
+<div class="tab-content">
+    <!-- Calendar Tab (existing content) -->
+    <div id="calendarTab" class="tab-pane active">
+        <div class="grid grid-cols-1">
+            <div class="card">
+                <div class="card-header">
+                    <div class="flex justify-between items-center">
+                        <h2>Select Date and Shift</h2>
+                        <div class="flex gap-16 items-center">
+                            <select id="monthSelect" class="form-select">
+                                <!-- Will be populated by JavaScript -->
+                            </select>
+                            <select id="yearSelect" class="form-select">
+                                <!-- Will be populated by JavaScript -->
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="calendar" class="calendar"></div>
+                </div>
+            </div>
+
+            <div id="summaryResults" class="hidden">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Orders for <span id="selectedDateDisplay"></span></h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table class="table" id="summaryOrdersTable">
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Plate</th>
+                                        <th>Vehicle</th>
+                                        <th>Service</th>
+                                        <th>Base Price</th>
+                                        <th>Addons</th>
+                                        <th>W/Vac</th>
+                                        <th>6B Shares</th>
+                                        <th>Washer Shares</th>
+                                        <th>SSS</th>
+                                        <th>VAC</th>
+                                        <th>Less 40</th>
+                                        <th>Washer Name</th>
+                                        <th>Incharge Name</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-24 mt-24">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Expenses</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-container">
+                                <table class="table" id="expensesTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Category</th>
+                                            <th>Description</th>
+                                            <th>Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Expenses will be populated here -->
+                                    </tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <td colspan="2"><strong>Total Expenses</strong></td>
+                                            <td><strong id="totalExpenses">₱0.00</strong></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Other Income</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-container">
+                                <table class="table" id="otherIncomeTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Category</th>
+                                            <th>Description</th>
+                                            <th>Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Other income will be populated here -->
+                                    </tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <td colspan="2"><strong>Total Other Income</strong></td>
+                                            <td><strong id="totalOtherIncomeDisplay">₱0.00</strong></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Summary</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="summary-item">
+                                <span>Total Gross Sales</span>
+                                <span id="totalGrossSales">₱0.00</span>
+                            </div>
+                            <div class="summary-item">
+                                <span>40x</span>
+                                <span id="fortyX">₱0.00</span>
+                            </div>
+                            <div class="summary-item">
+                                <span>Total Addons Sales</span>
+                                <span id="totalAddonsSales">₱0.00</span>
+                            </div>
+                            <div class="summary-item">
+                                <span>Total Other Income</span>
+                                <span id="totalOtherIncome">₱0.00</span>
+                            </div>
+                            <div class="summary-item">
+                                <span>Total Expenses</span>
+                                <span id="totalExpensesDisplay">₱0.00</span>
+                            </div>
+                            <div class="summary-item">
+                                <strong>Grand Total</strong>
+                                <strong id="grandTotal">₱0.00</strong>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
-        <div class="card-body">
-            <div id="calendar" class="calendar"></div>
-        </div>
     </div>
 
-    <div id="summaryResults" class="hidden">
+    <!-- Monthly Sales Tab -->
+    <div id="monthlyTab" class="tab-pane">
         <div class="card">
             <div class="card-header">
-                <h3>Orders for <span id="selectedDateDisplay"></span></h3>
+                <h3>Sales for the Month of <span id="monthlyMonthDisplay"></span></h3>
+                <div class="flex items-center gap-16 mt-16">
+                    <select id="monthlyMonthSelect" class="form-select">
+                        <option value="1">January</option>
+                        <option value="2">February</option>
+                        <option value="3">March</option>
+                        <option value="4">April</option>
+                        <option value="5">May</option>
+                        <option value="6">June</option>
+                        <option value="7">July</option>
+                        <option value="8">August</option>
+                        <option value="9">September</option>
+                        <option value="10">October</option>
+                        <option value="11">November</option>
+                        <option value="12">December</option>
+                    </select>
+                    <select id="monthlyYearSelect" class="form-select">
+                        <!-- Will be populated by JavaScript -->
+                    </select>
+                    <button id="loadMonthlySales" class="btn btn-primary">Load Sales</button>
+                </div>
             </div>
             <div class="card-body">
                 <div class="table-container">
-                    <table class="table" id="summaryOrdersTable">
+                    <table class="table" id="monthlySalesTable">
                         <thead>
                             <tr>
-                                <th>Time</th>
-                                <th>Plate</th>
-                                <th>Vehicle</th>
-                                <th>Service</th>
-                                <th>Base Price</th>
-                                <th>Addons</th>
-                                <th>W/Vac</th>
-                                <th>6B Shares</th>
-                                <th>Washer Shares</th>
-                                <th>SSS</th>
-                                <th>VAC</th>
-                                <th>Less 40</th>
-                                <th>Washer Name</th>
-                                <th>Incharge Name</th>
+                                <th>Date</th>
+                                <th>Amount</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
+                        <tfoot>
+                            <tr>
+                                <td><strong>Total</strong></td>
+                                <td><strong id="monthlyTotal">₱0.00</strong></td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
             </div>
         </div>
+    </div>
 
-        <div class="grid grid-cols-2 gap-24 mt-24">
-            <div class="card">
-                <div class="card-header">
-                    <h3>Expenses</h3>
-                </div>
-                <div class="card-body">
-                    <div class="table-container">
-                        <table class="table" id="expensesTable">
-                            <thead>
-                                <tr>
-                                    <th>Category</th>
-                                    <th>Description</th>
-                                    <th>Amount</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Expenses will be populated here -->
-                            </tbody>
-                            <tfoot>
-                                <tr>
-                                    <td colspan="2"><strong>Total Expenses</strong></td>
-                                    <td><strong id="totalExpenses">₱0.00</strong></td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
+    <!-- Yearly Sales Tab -->
+    <div id="yearlyTab" class="tab-pane">
+        <div class="card">
+            <div class="card-header">
+                <h3>Sales for the Year <span id="yearlyYearDisplay"></span></h3>
+                <div class="flex items-center gap-16 mt-16">
+                    <select id="yearlyYearSelect" class="form-select">
+                        <!-- Will be populated by JavaScript -->
+                    </select>
+                    <button id="loadYearlySales" class="btn btn-primary">Load Sales</button>
                 </div>
             </div>
-
-            <div class="card">
-                <div class="card-header">
-                    <h3>Other Income</h3>
-                </div>
-                <div class="card-body">
-                    <div class="table-container">
-                        <table class="table" id="otherIncomeTable">
-                            <thead>
-                                <tr>
-                                    <th>Category</th>
-                                    <th>Description</th>
-                                    <th>Amount</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Other income will be populated here -->
-                            </tbody>
-                            <tfoot>
-                                <tr>
-                                    <td colspan="2"><strong>Total Other Income</strong></td>
-                                    <td><strong id="totalOtherIncomeDisplay">₱0.00</strong></td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
+            <div class="card-body">
+                <div class="table-container">
+                    <table class="table" id="yearlySalesTable">
+                        <thead>
+                            <tr>
+                                <th>Month</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                        <tfoot>
+                            <tr>
+                                <td><strong>Total</strong></td>
+                                <td><strong id="yearlyTotal">₱0.00</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
                 </div>
             </div>
-
-            <div class="card">
-                <div class="card-header">
-                    <h3>Summary</h3>
-                </div>
-                <div class="card-body">
-                    <div class="summary-item">
-                        <span>Total Gross Sales</span>
-                        <span id="totalGrossSales">₱0.00</span>
-                    </div>
-                    <div class="summary-item">
-                        <span>40x</span>
-                        <span id="fortyX">₱0.00</span>
-                    </div>
-                    <div class="summary-item">
-                        <span>Total Addons Sales</span>
-                        <span id="totalAddonsSales">₱0.00</span>
-                    </div>
-                    <div class="summary-item">
-                        <span>Total Other Income</span>
-                        <span id="totalOtherIncome">₱0.00</span>
-                    </div>
-                    <div class="summary-item">
-                        <span>Total Expenses</span>
-                        <span id="totalExpensesDisplay">₱0.00</span>
-                    </div>
-                    <div class="summary-item">
-                        <strong>Grand Total</strong>
-                        <strong id="grandTotal">₱0.00</strong>
-                    </div>
-                </div>
-            </div>
-
-            
         </div>
     </div>
 </div>
