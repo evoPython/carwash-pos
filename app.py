@@ -17,7 +17,7 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY", "your-secret-key-here")
 
 MONGO_URI = os.environ.get(
     "MONGO_URI",
-    "mongodb+srv://carwashDeveloper:evopy08200280ypove@carwashcluster.fnye3pz.mongodb.net/?retryWrites=true&w=majority&appName=carwashCluster"
+    "mongodb+srv://carwashDeveloper:developer08200280repoleved@carwashcluster.vurz4fv.mongodb.net/?retryWrites=true&w=majority&appName=carwashCluster"
 )
 MONGO_DBNAME = os.environ.get("MONGO_DBNAME", "carwash")
 
@@ -30,6 +30,7 @@ vehicles_col = db["vehicles"]
 orders_col = db["orders"]
 summaries_col = db["shift_summaries"]
 counters_col = db["counters"]  # for auto-increment integer ids
+customers_col = db["customers"]
 
 # Logging
 logging.basicConfig(level=logging.INFO)
@@ -277,6 +278,12 @@ def users():
 @login_required
 def vehicles():
     return render_template("vehicles.html", user=current_user)
+
+@app.route("/customers")
+@login_required
+@role_required("admin", "developer")
+def customers():
+    return render_template("customers.html", user=current_user)
 
 # --- Orders API (POST stores same shapes as old SQLite; GET returns parsed shapes like original) ---
 @app.route("/api/orders", methods=["GET", "POST"])
@@ -592,6 +599,86 @@ def api_user(user_id):
     users_col.delete_one({"id": target["id"]})
     return jsonify({"success": True})
 
+# --- Customers API ---
+@app.route("/api/customers", methods=["GET", "POST"])
+@login_required
+@role_required("admin", "developer")
+def api_customers():
+    if request.method == "POST":
+        data = request.get_json() or {}
+        plate_number = data.get("plate_number")
+        customer_name = data.get("customer_name")
+        contact_no = data.get("contact_no")
+        vehicle_name = data.get("vehicle_name")
+
+        if not plate_number:
+            return jsonify({"success": False, "message": "Plate number is required"}), 400
+
+        if customers_col.find_one({"plate_number": plate_number}):
+            return jsonify({"success": False, "message": "Plate number already assigned"}), 400
+
+        # Calculate number of washes from orders
+        washes = orders_col.count_documents({"plate_number": plate_number})
+
+        customers_col.insert_one({
+            "id": get_next_sequence("customers"),
+            "plate_number": plate_number,
+            "customer_name": customer_name,
+            "contact_no": contact_no,
+            "vehicle_name": vehicle_name,
+            "washes": washes
+        })
+        return jsonify({"success": True})
+
+    # GET
+    cursor = customers_col.find()
+    customers = []
+    for doc in cursor:
+        customers.append(serialize_doc_for_api(doc))
+    return jsonify(customers)
+
+@app.route("/api/customers/<customer_id>", methods=["GET", "PUT", "DELETE"])
+@login_required
+@role_required("admin", "developer")
+def api_customer(customer_id):
+    try:
+        customer = customers_col.find_one({"_id": ObjectId(customer_id)})
+        if not customer:
+            return jsonify({"success": False, "message": "Customer not found"}), 404
+
+        if request.method == "GET":
+            return jsonify(serialize_doc_for_api(customer))
+
+        if request.method == "PUT":
+            data = request.get_json() or {}
+            plate_number = data.get("plate_number", customer["plate_number"])
+
+            # Update washes count if plate number changed
+            washes = customer.get("washes", 0)
+            if plate_number != customer["plate_number"]:
+                washes = orders_col.count_documents({"plate_number": plate_number})
+
+            update_data = {
+                "plate_number": plate_number,
+                "customer_name": data.get("customer_name", customer.get("customer_name")),
+                "contact_no": data.get("contact_no", customer.get("contact_no")),
+                "vehicle_name": data.get("vehicle_name", customer.get("vehicle_name")),
+                "washes": washes
+            }
+
+            customers_col.update_one({"_id": ObjectId(customer_id)}, {"$set": update_data})
+            return jsonify({"success": True})
+
+        if request.method == "DELETE":
+            customers_col.delete_one({"_id": ObjectId(customer_id)})
+            return jsonify({"success": True})
+
+    except InvalidId:
+        return jsonify({"success": False, "message": "Invalid customer ID"}), 400
+    except Exception as e:
+        app.logger.exception("Error handling customer")
+        return jsonify({"success": False, "message": str(e)}), 500
+
 # --- DB inspector / convenience endpoints similar to original ---
 @app.route("/database")
 @login_required
@@ -737,8 +824,29 @@ def ensure_indexes():
         orders_col.create_index([("id", ASCENDING)], unique=True)
         summaries_col.create_index([("id", ASCENDING)], unique=True)
         summaries_col.create_index([("incharge_name", ASCENDING), ("date", ASCENDING), ("shift", ASCENDING)], unique=True)
+        customers_col.create_index([("plate_number", ASCENDING)], unique=True)
     except Exception:
         app.logger.warning("Index creation failed or already exists.")
+
+@app.route("/api/unassigned_plates")
+@login_required
+@role_required("admin", "developer")
+def api_unassigned_plates():
+    # Get all plate numbers from orders
+    pipeline = [
+        {"$group": {"_id": "$plate_number"}},
+        {"$project": {"plate_number": "$_id", "_id": 0}}
+    ]
+    cursor = orders_col.aggregate(pipeline)
+    all_plates = [doc["plate_number"] for doc in cursor if doc["plate_number"]]
+
+    # Get all assigned plate numbers
+    assigned_plates = [customer["plate_number"] for customer in customers_col.find()]
+
+    # Find unassigned plates
+    unassigned_plates = [plate for plate in all_plates if plate not in assigned_plates]
+
+    return jsonify(unassigned_plates)
 
 if __name__ == "__main__":
     ensure_indexes()
