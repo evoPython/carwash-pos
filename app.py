@@ -482,6 +482,16 @@ def api_vehicles():
         if not vehicle_name:
             return jsonify({"success": False, "message": "Missing vehicle_name"}), 400
 
+        # Check if vehicle exists
+        if not vehicles_col.find_one({"vehicle_name": vehicle_name}):
+            return jsonify({"success": False, "message": "Vehicle not found"}), 404
+
+        # Validate payload structure
+        if not isinstance(bases, dict):
+            return jsonify({"success": False, "message": "Invalid bases format"}), 400
+        if not isinstance(addons, dict):
+            return jsonify({"success": False, "message": "Invalid addons format"}), 400
+
         vehicles_col.update_one({"vehicle_name": vehicle_name}, {"$set": {"bases": json.dumps(bases), "addons": json.dumps(addons)}})
         return jsonify({"success": True})
 
@@ -495,6 +505,58 @@ def api_vehicles():
         row["addons"] = safe_json_load(row.get("addons"), {})
         out.append(row)
     return jsonify(out)
+
+@app.route("/api/vehicles/delete", methods=["POST"])
+@login_required
+def api_vehicles_delete():
+    """
+    Delete a vehicle by name.
+    Expects JSON payload: {"vehicle_name": "Vehicle Name"}
+    """
+    data = request.get_json() or {}
+    vehicle_name = data.get("vehicle_name")
+
+    if not vehicle_name:
+        return jsonify({"success": False, "message": "Missing vehicle_name"}), 400
+
+    # Check if vehicle exists
+    if not vehicles_col.find_one({"vehicle_name": vehicle_name}):
+        return jsonify({"success": False, "message": "Vehicle not found"}), 404
+
+    vehicles_col.delete_one({"vehicle_name": vehicle_name})
+    return jsonify({"success": True})
+
+@app.route("/api/vehicles/edit", methods=["POST"])
+@login_required
+def api_vehicles_edit():
+    """
+    Edit a vehicle by name.
+    Expects JSON payload: {
+        "vehicle_name": "Vehicle Name",
+        "bases": [{"name": "Base1", "price": 100, "vac": true}, ...],
+        "addons": {"Wax": 300, ...}
+    }
+    """
+    data = request.get_json() or {}
+    vehicle_name = data.get("vehicle_name")
+    bases = data.get("bases", [])
+    addons = data.get("addons", {})
+
+    if not vehicle_name:
+        return jsonify({"success": False, "message": "Missing vehicle_name"}), 400
+
+    # Check if vehicle exists
+    if not vehicles_col.find_one({"vehicle_name": vehicle_name}):
+        return jsonify({"success": False, "message": "Vehicle not found"}), 404
+
+    # Validate payload structure
+    if not isinstance(bases, dict):
+        return jsonify({"success": False, "message": "Invalid bases format"}), 400
+    if not isinstance(addons, dict):
+        return jsonify({"success": False, "message": "Invalid addons format"}), 400
+
+    vehicles_col.update_one({"vehicle_name": vehicle_name}, {"$set": {"bases": json.dumps(bases), "addons": json.dumps(addons)}})
+    return jsonify({"success": True})
 
 # --- Shift summary retrieval (returns parsed fields like the original) ---
 @app.route("/api/shift_summary/<date>/<shift>")

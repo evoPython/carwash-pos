@@ -202,14 +202,19 @@ async function deleteVehicle(vehicleName) {
     if (!confirm('Are you sure you want to delete this vehicle type?')) return;
 
     try {
-        const response = await fetch(`/api/vehicles/${vehicleName}`, {
-            method: 'DELETE'
+        const response = await fetch('/api/vehicles/delete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ vehicle_name: vehicleName })
         });
 
         if (response.ok) {
             loadVehicles();
         } else {
-            alert('Error deleting vehicle');
+            const error = await response.json();
+            alert(error.message || 'Error deleting vehicle');
         }
     } catch (error) {
         console.error('Error deleting vehicle:', error);
@@ -254,8 +259,8 @@ async function submitVehicleForm(event) {
         addons
     };
 
-    const method = editingVehicleId ? 'PUT' : 'POST';
-    const url = editingVehicleId ? `/api/vehicles/${editingVehicleId}` : '/api/vehicles';
+    const method = editingVehicleId ? 'POST' : 'POST';
+    const url = editingVehicleId ? '/api/vehicles/edit' : '/api/vehicles';
 
     try {
         const response = await fetch(url, {
